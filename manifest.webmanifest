@@ -1,0 +1,11 @@
+{
+  "name": "포켓몬스터 어나더 레드",
+  "short_name": "어나더레드",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#111014",
+  "theme_color": "#000000",
+  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png" }]
+}

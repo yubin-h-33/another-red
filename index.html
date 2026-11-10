@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="어나더레드" />
+<meta name="theme-color" content="#000000" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="apple-touch-icon" href="./icon.png" />
+<link rel="icon" href="./icon.png" />
+<title>어나더레드</title>
+<link rel="stylesheet" href="./assets/player.css" />
+<link rel="stylesheet" href="./ar.css" />
+<script src="./coi-serviceworker.min.js"></script>
+</head>
+<body>
+  <div id="screen">
+    <div id="spinner-target">
+      <div id="progressbar-target" style="display:none;width:70px;height:70px"></div>
+      <p id="user-activation-prompt" style="display:none;font-size:60px">▶</p>
+    </div>
+    <canvas id="nostalgist-canvas"></canvas>
+  </div>
+  <div id="gamepad-target" hidden></div>
+
+  <div id="pad" hidden>
+    <div id="top-row">
+      <button class="sm" data-btn="y">L</button>
+      <button class="sm" data-btn="l3">R</button>
+      <button class="sm" data-btn="r3">스페셜</button>
+      <button class="sm" data-btn="l">배틀배속</button>
+      <button class="sm" id="ff">⏩ 빨리</button>
+      <button class="sm" id="open-menu">☰</button>
+    </div>
+    <div id="dpad"><span class="up"></span><span class="right"></span><span class="down"></span><span class="left"></span><i></i></div>
+    <div id="face">
+      <button class="face" id="btn-bag" data-btn="x">가방</button>
+      <button class="face" id="btn-b" data-btn="b">B</button>
+      <button class="face" id="btn-a" data-btn="a">A</button>
+    </div>
+  </div>
+
+  <div id="menu">
+    <div class="card">
+      <h1>포켓몬스터 어나더 레드</h1>
+      <p class="sub">PWT 250821 + 패치 250829 · 웹 플레이어</p>
+      <div id="status">확인 중…</div>
+      <div id="progress" hidden><div id="bar"></div></div>
+      <button id="download" class="primary" hidden>게임 데이터 받기</button>
+      <button id="start" class="primary" hidden>게임 시작</button>
+      <button id="resume" class="primary" hidden>게임으로 돌아가기</button>
+      <div class="row">
+        <button id="export">세이브 백업</button>
+        <button id="import">세이브 복원</button>
+      </div>
+      <input type="file" id="import-file" accept=".zip,application/zip" hidden />
+      <p id="hint"></p>
+      <details>
+        <summary>도움말</summary>
+        <ul>
+          <li><b>홈 화면에 추가</b>해서 쓰세요. (공유 → 홈 화면에 추가) 홈 화면 앱과 사파리 탭은 저장공간이 따로라서, 받은 게임 데이터와 세이브도 각각 따로 있어요.</li>
+          <li>게임 안에서 저장하면 이 기기에 계속 남아요. 가끔 <b>세이브 백업</b>으로 파일 앱에 복사본을 남겨두면 안전해요.</li>
+          <li>A = 결정, B = 취소/달리기, 가방 = 원래 Z키, L/R/스페셜 = A/S/D키, 배틀배속 = Q키</li>
+          <li>⏩ 빨리 = 게임 전체 3배속 토글</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+
+  <script type="module" src="./ar.js"></script>
+</body>
+</html>
