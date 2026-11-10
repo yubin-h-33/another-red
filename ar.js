@@ -113,7 +113,7 @@ async function download() {
         let buf;
         for (let attempt = 0; ; attempt++) {
           try {
-            const res = await fetch((manifest.base ?? './game/') + manifest.parts[i]);
+            const res = await fetch((manifest.base ?? './game/') + manifest.parts[i], { cache: 'no-store' }); // 브라우저 캐시에 500MB 가 또 쌓이지 않게
             if (!res.ok) throw new Error('HTTP ' + res.status);
             buf = await res.arrayBuffer();
             break;
@@ -259,7 +259,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261110204203');
+    await import('./assets/player.js?v=20261110205842');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
