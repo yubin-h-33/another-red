@@ -36,26 +36,44 @@ button { font: inherit; color: inherit; }
   pointer-events: none; z-index: 1;
 }
 
+/* 패드: 일반 게임기 배치 — 위 모서리에 L/R, 왼쪽 십자키, 오른쪽 A/B/가방, 가운데 작은 기능 버튼 */
 #pad {
   position: fixed; left: 0; right: 0;
   top: calc(env(safe-area-inset-top) + 75vw);
   bottom: env(safe-area-inset-bottom);
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto 1fr;
-  padding: 10px 16px 12px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "l    .   r"
+    "dpad mid face"
+    "sys  sys sys";
+  padding: 10px 14px 10px;
+  column-gap: 8px;
 }
 #pad[hidden] { display: none; }
-#top-row { grid-column: 1 / 3; display: flex; gap: 6px; justify-content: space-between; }
+
+.shoulder {
+  height: 40px; width: min(36vw, 140px); padding: 0;
+  background: var(--btn); border: 1px solid var(--line); font-weight: 700; font-size: 16px;
+}
+#btn-l { grid-area: l; justify-self: start; border-radius: 10px 22px 10px 10px; }
+#btn-r { grid-area: r; justify-self: end; border-radius: 22px 10px 10px 10px; }
+.shoulder.on { background: var(--btn-active); }
+
 .sm {
-  flex: 1; min-width: 0; height: 36px; border-radius: 10px;
-  background: var(--btn); border: 1px solid var(--line); font-size: 13px; padding: 0;
+  height: 32px; min-width: 0; padding: 0 10px; border-radius: 16px;
+  background: var(--btn); border: 1px solid var(--line); font-size: 12px; white-space: nowrap;
 }
 .sm.on { background: var(--red-dark); border-color: var(--red); }
+#mid { grid-area: mid; align-self: center; display: flex; flex-direction: column; gap: 10px; }
+#mid .sm { width: 74px; padding: 0; font-size: 11px; }
+#sys { grid-area: sys; display: flex; justify-content: center; gap: 14px; }
+#sys .sm { width: 92px; }
 
 #dpad {
-  position: relative; align-self: center; justify-self: start;
-  width: min(42vw, 180px); aspect-ratio: 1;
+  grid-area: dpad; position: relative; align-self: center; justify-self: start;
+  width: min(calc((100vw - 120px) / 2), 165px); aspect-ratio: 1;
 }
 #dpad span, #dpad i {
   position: absolute; background: var(--btn); border: 1px solid var(--line);
@@ -68,16 +86,17 @@ button { font: inherit; color: inherit; }
 #dpad i { left: 33%; top: 33%; width: 34%; height: 34%; border: none; }
 #dpad span.on { background: var(--btn-active); }
 
-#face { position: relative; align-self: center; justify-self: end; width: min(44vw, 190px); aspect-ratio: 1; }
+/* A 는 오른쪽 위, B 는 왼쪽 아래(게임보이 배치), 가방은 A 아래 */
+#face { grid-area: face; position: relative; align-self: center; justify-self: end; width: min(calc((100vw - 120px) / 2), 165px); aspect-ratio: 1; }
 .face {
   position: absolute; border-radius: 50%; border: 1px solid var(--line);
   background: var(--btn); font-weight: 700; padding: 0;
 }
 .face.on { background: var(--btn-active); }
-#btn-a { width: 44%; height: 44%; right: 0; top: 18%; background: var(--red-dark); border-color: var(--red); font-size: 22px; }
+#btn-a { width: 42%; height: 42%; right: 0; top: 10%; background: var(--red-dark); border-color: var(--red); font-size: 22px; }
 #btn-a.on { background: var(--red); }
-#btn-b { width: 40%; height: 40%; left: 14%; top: 42%; font-size: 20px; }
-#btn-bag { width: 30%; height: 30%; right: 6%; bottom: 0; font-size: 13px; }
+#btn-b { width: 42%; height: 42%; left: 2%; top: 34%; font-size: 22px; }
+#btn-bag { width: 30%; height: 30%; right: 8%; bottom: 0; font-size: 13px; }
 
 /* 가로모드: 화면을 가운데 크게, 패드는 양옆에 반투명으로 */
 @media (orientation: landscape) {
@@ -85,12 +104,15 @@ button { font: inherit; color: inherit; }
     top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
     height: 100vh; width: calc(100vh * 4 / 3); max-width: 100vw;
   }
-  #pad { top: 0; bottom: 0; padding: 12px calc(env(safe-area-inset-right) + 12px) 12px calc(env(safe-area-inset-left) + 12px); pointer-events: none; }
-  #pad > * { pointer-events: auto; }
-  #top-row { flex-direction: column; position: absolute; right: calc(env(safe-area-inset-right) + 8px); top: 8px; width: 74px; }
-  #top-row .sm { flex: none; opacity: .75; }
-  #dpad { position: absolute; left: calc(env(safe-area-inset-left) + 12px); bottom: 16px; width: 150px; opacity: .75; }
-  #face { position: absolute; right: calc(env(safe-area-inset-right) + 90px); bottom: 16px; width: 160px; opacity: .75; }
+  #pad { display: block; top: 0; bottom: 0; padding: 0; pointer-events: none; }
+  #pad[hidden] { display: none; }
+  #pad > * { pointer-events: auto; position: absolute; opacity: .8; }
+  #btn-l { left: calc(env(safe-area-inset-left) + 10px); top: 10px; width: 120px; }
+  #btn-r { right: calc(env(safe-area-inset-right) + 10px); top: 10px; width: 120px; }
+  #mid { left: calc(env(safe-area-inset-left) + 10px); top: 64px; }
+  #sys { right: calc(env(safe-area-inset-right) + 10px); top: 64px; flex-direction: column; gap: 10px; }
+  #dpad { left: calc(env(safe-area-inset-left) + 10px); bottom: 14px; width: 150px; }
+  #face { right: calc(env(safe-area-inset-right) + 10px); bottom: 14px; width: 150px; }
 }
 
 /* 시작/설정 메뉴 */

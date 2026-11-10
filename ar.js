@@ -191,6 +191,7 @@ function onGameShown() {
   hideLog();
 }
 
+
 // ---------- 오디오: iOS 는 터치 안에서 만들어지지 않은 AudioContext 를 멈춰두고,
 // 엔진은 오디오가 안 돌면 게임 진행까지 멈춘다 → 만들어진 컨텍스트를 모아두고 터치 때마다 깨운다
 // 그래서 '게임 시작' 터치 안에서 미리 깨워둔 컨텍스트를 엔진이 처음 만들 때 대신 넘겨준다
@@ -232,6 +233,7 @@ window.__arStarted = (z) => {
 
 async function start() {
   primeAudio(); // 반드시 await 전에, 터치 처리 안에서
+  addLog('[ar] start tapped');
   $('start').disabled = true;
   await navigator.storage.persist?.();
   // 무음 스위치가 켜져 있어도 소리가 나도록
@@ -242,7 +244,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261110175259');
+    await import('./assets/player.js?v=20261110181911');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));

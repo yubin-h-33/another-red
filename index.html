@@ -13,7 +13,7 @@
 <link rel="icon" href="./icon.png" />
 <title>어나더레드</title>
 <link rel="stylesheet" href="./assets/player.css" />
-<link rel="stylesheet" href="./ar.css?v=20261110175259" />
+<link rel="stylesheet" href="./ar.css?v=20261110181911" />
 <script>
   // 사파리는 COEP credentialless 를 지원하지 않아서 항상 require-corp 를 쓰게 한다
   window.coi = { coepCredentialless: () => false };
@@ -32,19 +32,21 @@
   <div id="gamepad-target" hidden></div>
 
   <div id="pad" hidden>
-    <div id="top-row">
-      <button class="sm" data-btn="y">L</button>
-      <button class="sm" data-btn="l3">R</button>
+    <button class="shoulder" id="btn-l" data-btn="y">L</button>
+    <button class="shoulder" id="btn-r" data-btn="l3">R</button>
+    <div id="dpad"><span class="up"></span><span class="right"></span><span class="down"></span><span class="left"></span><i></i></div>
+    <div id="mid">
       <button class="sm" data-btn="r3">스페셜</button>
       <button class="sm" data-btn="l">배틀배속</button>
-      <button class="sm" id="ff">⏩ 빨리</button>
-      <button class="sm" id="open-menu">☰</button>
     </div>
-    <div id="dpad"><span class="up"></span><span class="right"></span><span class="down"></span><span class="left"></span><i></i></div>
     <div id="face">
       <button class="face" id="btn-bag" data-btn="x">가방</button>
       <button class="face" id="btn-b" data-btn="b">B</button>
       <button class="face" id="btn-a" data-btn="a">A</button>
+    </div>
+    <div id="sys">
+      <button class="sm" id="ff">⏩ 빨리</button>
+      <button class="sm" id="open-menu">☰ 메뉴</button>
     </div>
   </div>
 
@@ -75,6 +77,6 @@
     </div>
   </div>
 
-  <script type="module" src="./ar.js?v=20261110175259"></script>
+  <script type="module" src="./ar.js?v=20261110181911"></script>
 </body>
 </html>
