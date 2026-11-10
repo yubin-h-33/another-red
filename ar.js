@@ -198,6 +198,21 @@ function onGameShown() {
 const audioCtxs = [];
 const OrigAudioContext = window.AudioContext || window.webkitAudioContext;
 let primedAudio = null;
+// 백그라운드에서는 엔진이 resume 을 불러도 소리가 다시 나지 않게 막고,
+// 엔진 출력은 음소거용 볼륨 노드를 거쳐서 나가게 한다
+function guardAudio(ctx) {
+  const resume = ctx.resume.bind(ctx);
+  ctx.resume = () => (document.hidden || asleep ? Promise.resolve() : resume());
+  const out = ctx.createGain();
+  out.connect(ctx.destination);
+  Object.defineProperty(ctx, 'destination', { get: () => out });
+  ctx.arOut = out;
+  audioCtxs.push(ctx);
+  return ctx;
+}
+function muteAudio(on) {
+  for (const c of audioCtxs) c.arOut.gain.value = on ? 0 : 1;
+}
 if (OrigAudioContext) {
   window.AudioContext = window.webkitAudioContext = class extends OrigAudioContext {
     constructor(...a) {
@@ -207,19 +222,19 @@ if (OrigAudioContext) {
         return ctx;
       }
       super(...a);
-      audioCtxs.push(this);
+      guardAudio(this);
     }
   };
 }
 function primeAudio() {
   if (!OrigAudioContext || primedAudio) return;
   try {
-    primedAudio = new OrigAudioContext({ latencyHint: 'interactive' });
+    primedAudio = guardAudio(new OrigAudioContext({ latencyHint: 'interactive' }));
     primedAudio.resume().catch(() => {});
-    audioCtxs.push(primedAudio);
   } catch {}
 }
 function wakeAudio() {
+  if (document.hidden) return;
   for (const c of audioCtxs) if (c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => {});
 }
 for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, wakeAudio, true);
@@ -244,7 +259,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261110181911');
+    await import('./assets/player.js?v=20261110204203');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -339,7 +354,49 @@ $('ff').addEventListener('click', () => {
 });
 $('open-menu').addEventListener('click', openMenu);
 document.addEventListener('gesturestart', (e) => e.preventDefault());
-document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+// 홈으로 나가거나 화면이 꺼지면 게임과 소리를 멈추고, 돌아오면 다시 켠다
+// ('playback' 오디오 세션은 그냥 두면 백그라운드에서도 계속 소리를 낸다)
+let asleep = false;
+let unseen = false; // 화면이 안 그려지는 중 (아래 감시)
+function sleepGame() {
+  if (asleep) return;
+  asleep = true;
+  addLog('[ar] sleep');
+  releaseAll();
+  muteAudio(true);
+  try { nost?.pause(); } catch {}
+  for (const c of audioCtxs) if (c.state === 'running') c.suspend().catch(() => {});
+}
+function wakeGame() {
+  if (!asleep || document.hidden) return;
+  asleep = false;
+  addLog('[ar] wake');
+  if (!unseen) muteAudio(false);
+  if ($('menu').hidden) try { nost?.resume(); } catch {}
+  wakeAudio();
+}
+document.addEventListener('visibilitychange', () => (document.hidden ? sleepGame() : wakeGame()));
+window.addEventListener('pagehide', sleepGame);
+window.addEventListener('pageshow', wakeGame);
+// iOS 는 홈으로 나가도 visibilitychange 없이 화면 그리기만 멈추는 경우가 있다
+// → 화면 프레임이 1초 넘게 안 오면 소리만 끈다 (로딩 중에 잠깐 멈출 때도 있어서 게임은 그대로 둔다)
+let lastFrame = performance.now();
+const rafOrig = window.requestAnimationFrame.bind(window);
+rafOrig(function frame() {
+  lastFrame = performance.now();
+  if (unseen) {
+    unseen = false;
+    addLog('[ar] seen');
+    if (!asleep) muteAudio(false);
+  }
+  rafOrig(frame);
+});
+setInterval(() => {
+  if (unseen || performance.now() - lastFrame < 1000) return;
+  unseen = true;
+  addLog('[ar] unseen');
+  muteAudio(true);
+}, 300);
 
 // ---------- 세이브 백업 / 복원 (zip, 무압축) ----------
 const CRC = new Uint32Array(256).map((_, n) => {
