@@ -64,7 +64,16 @@ function setProgress(frac) {
 
 async function refresh() {
   if (!window.isSecureContext) return setStatus('HTTPS 주소에서 열어야 해요.');
-  if (!window.crossOriginIsolated) return setStatus('준비 중… (자동으로 새로고침돼요. 안 되면 직접 새로고침)');
+  if (!window.crossOriginIsolated) {
+    // 서비스 워커가 설정을 받은 뒤라야 격리가 켜진다 → 몇 번까지 자동으로 다시 연다
+    const tries = Number(sessionStorage.getItem('ar-coi-tries') || 0);
+    if (navigator.serviceWorker?.controller && tries < 3) {
+      sessionStorage.setItem('ar-coi-tries', String(tries + 1));
+      setTimeout(() => location.reload(), 300);
+    }
+    return setStatus('준비 중… 잠시 후에도 그대로면 앱을 완전히 닫았다가 다시 열어주세요.');
+  }
+  sessionStorage.removeItem('ar-coi-tries');
   manifest = await (await fetch('./game/manifest.json', { cache: 'no-store' })).json();
   const size = await gameFileSize();
   const ready = localStorage.getItem(DONE_KEY) === manifest.hash && size === manifest.size;

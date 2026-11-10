@@ -14,6 +14,10 @@
 <title>어나더레드</title>
 <link rel="stylesheet" href="./assets/player.css" />
 <link rel="stylesheet" href="./ar.css" />
+<script>
+  // 사파리는 COEP credentialless 를 지원하지 않아서 항상 require-corp 를 쓰게 한다
+  window.coi = { coepCredentialless: () => false };
+</script>
 <script src="./coi-serviceworker.min.js"></script>
 </head>
 <body>
