@@ -142,8 +142,12 @@ async function download() {
 // ---------- 로딩 로그: 검은 화면일 때 무슨 일이 일어나는지 보이게 ----------
 const logLines = [];
 let logOn = false;
+const DEBUG = new URLSearchParams(location.search).has('debug');
 function addLog(text) {
-  if (!logOn) return;
+  if (DEBUG) try { navigator.sendBeacon('/log', String(text)); } catch {}
+  // 게임이 화면 크기를 정하면 첫 화면이 나온 것
+  if (String(text).includes('SET_GEOMETRY')) onGameShown();
+  if (!logOn || !DEBUG) return;
   text = String(text).replace(/\x1b\[[0-9;]*m/g, '');
   if (/GLSL|Playlist|Environ\] (GET|SET)_|\[GL\]|Linking|shader/i.test(text)) return;
   logLines.push(text.slice(0, 160));
@@ -155,8 +159,69 @@ for (const k of ['log', 'info', 'warn', 'error']) {
   console[k] = (...a) => { orig(...a); addLog(a.join(' ')); };
 }
 window.addEventListener('error', (e) => addLog('오류: ' + e.message));
+if (DEBUG) {
+  // 진단용: 초당 프레임 수와 WebGL 컨텍스트 손실 보고
+  let frames = 0;
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (f) => raf((t) => { frames++; f(t); });
+  setInterval(() => {
+    const c = document.querySelector('#screen canvas');
+    navigator.sendBeacon('/log', `[dbg] audio=${audioCtxs.map((c) => c.state).join(',')} nost=${!!nost}/${!!window.__arNost} raf/2s=${frames} canvas=${c?.width}x${c?.height} css=${c?.clientWidth}x${c?.clientHeight} vis=${document.visibilityState}`);
+    frames = 0;
+  }, 2000);
+  document.addEventListener('webglcontextlost', () => navigator.sendBeacon('/log', '[dbg] webglcontextlost'), true);
+}
 window.addEventListener('unhandledrejection', (e) => addLog('오류: ' + (e.reason?.message ?? e.reason)));
-function hideLog() { logOn = false; $('log').hidden = true; }
+function hideLog() { logOn = false; $('log').hidden = true; clearInterval(loadingTimer); }
+let loadingTimer;
+function showLoading() {
+  logOn = true;
+  $('log').hidden = false;
+  const t0 = Date.now();
+  const tick = () => {
+    if (DEBUG) return;
+    const sec = Math.round((Date.now() - t0) / 1000);
+    $('log').textContent = `게임 불러오는 중… ${sec}초\n처음 켤 때는 1~3분쯤 걸려요. 화면이 검어도 기다려 주세요.`;
+  };
+  tick();
+  loadingTimer = setInterval(tick, 1000);
+}
+function onGameShown() {
+  if (!logOn) return;
+  hideLog();
+}
+
+// ---------- 오디오: iOS 는 터치 안에서 만들어지지 않은 AudioContext 를 멈춰두고,
+// 엔진은 오디오가 안 돌면 게임 진행까지 멈춘다 → 만들어진 컨텍스트를 모아두고 터치 때마다 깨운다
+// 그래서 '게임 시작' 터치 안에서 미리 깨워둔 컨텍스트를 엔진이 처음 만들 때 대신 넘겨준다
+const audioCtxs = [];
+const OrigAudioContext = window.AudioContext || window.webkitAudioContext;
+let primedAudio = null;
+if (OrigAudioContext) {
+  window.AudioContext = window.webkitAudioContext = class extends OrigAudioContext {
+    constructor(...a) {
+      if (primedAudio) {
+        const ctx = primedAudio;
+        primedAudio = null;
+        return ctx;
+      }
+      super(...a);
+      audioCtxs.push(this);
+    }
+  };
+}
+function primeAudio() {
+  if (!OrigAudioContext || primedAudio) return;
+  try {
+    primedAudio = new OrigAudioContext({ latencyHint: 'interactive' });
+    primedAudio.resume().catch(() => {});
+    audioCtxs.push(primedAudio);
+  } catch {}
+}
+function wakeAudio() {
+  for (const c of audioCtxs) if (c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => {});
+}
+for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, wakeAudio, true);
 
 // ---------- 게임 시작 ----------
 window.__arGame = async () => (await (await root()).getFileHandle(GAME_FILE)).getFile();
@@ -166,6 +231,7 @@ window.__arStarted = (z) => {
 };
 
 async function start() {
+  primeAudio(); // 반드시 await 전에, 터치 처리 안에서
   $('start').disabled = true;
   await navigator.storage.persist?.();
   // 무음 스위치가 켜져 있어도 소리가 나도록
@@ -174,10 +240,13 @@ async function start() {
   sessionStorage.setItem('nostalgist status for mkxp-z @ ' + location.href, 'ready');
   $('menu').hidden = true;
   $('pad').hidden = false;
-  logOn = true;
-  $('log').hidden = false;
-  addLog('엔진 불러오는 중… (처음엔 1~2분 걸릴 수 있어요)');
-  await import('./assets/player.js?v=' + (manifest?.hash ?? '').slice(0, 8));
+  showLoading();
+  try {
+    await import('./assets/player.js?v=20261110175259');
+    addLog('[ar] 엔진 시작 완료');
+  } catch (err) {
+    addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
+  }
 }
 
 function openMenu() {
@@ -194,17 +263,16 @@ function closeMenu() {
 
 // ---------- 터치 패드 ----------
 const held = new Map(); // pointerId -> button
-// 아주 짧은 탭은 한 프레임 안에 눌림/뗌이 끝나 게임이 못 읽으므로 최소 80ms 는 누른 상태로 둔다
+// 아주 짧은 탭은 게임이 한 프레임 처리하기 전에 끝나버려서 못 읽는다 → 최소 150ms 는 누른 상태로 둔다
 const downAt = new Map();
 function press(btn, down) {
   if (!nost) return;
-  if (down && logOn) hideLog();
   const canvas = nost.getCanvas?.();
   if (canvas && document.activeElement !== canvas) canvas.focus?.();
   if (down) {
     downAt.set(btn, performance.now());
   } else {
-    const wait = 80 - (performance.now() - (downAt.get(btn) ?? 0));
+    const wait = 150 - (performance.now() - (downAt.get(btn) ?? 0));
     if (wait > 0) return setTimeout(() => press(btn, false), wait);
   }
   try { (down ? nost.pressDown : nost.pressUp).call(nost, { button: btn }); } catch {}
