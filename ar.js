@@ -139,6 +139,25 @@ async function download() {
   await refresh();
 }
 
+// ---------- 로딩 로그: 검은 화면일 때 무슨 일이 일어나는지 보이게 ----------
+const logLines = [];
+let logOn = false;
+function addLog(text) {
+  if (!logOn) return;
+  text = String(text).replace(/\x1b\[[0-9;]*m/g, '');
+  if (/GLSL|Playlist|Environ\] (GET|SET)_|\[GL\]|Linking|shader/i.test(text)) return;
+  logLines.push(text.slice(0, 160));
+  if (logLines.length > 8) logLines.shift();
+  $('log').textContent = logLines.join('\n');
+}
+for (const k of ['log', 'info', 'warn', 'error']) {
+  const orig = console[k].bind(console);
+  console[k] = (...a) => { orig(...a); addLog(a.join(' ')); };
+}
+window.addEventListener('error', (e) => addLog('오류: ' + e.message));
+window.addEventListener('unhandledrejection', (e) => addLog('오류: ' + (e.reason?.message ?? e.reason)));
+function hideLog() { logOn = false; $('log').hidden = true; }
+
 // ---------- 게임 시작 ----------
 window.__arGame = async () => (await (await root()).getFileHandle(GAME_FILE)).getFile();
 window.__arStarted = (z) => {
@@ -155,6 +174,9 @@ async function start() {
   sessionStorage.setItem('nostalgist status for mkxp-z @ ' + location.href, 'ready');
   $('menu').hidden = true;
   $('pad').hidden = false;
+  logOn = true;
+  $('log').hidden = false;
+  addLog('엔진 불러오는 중… (처음엔 1~2분 걸릴 수 있어요)');
   await import('./assets/player.js?v=' + (manifest?.hash ?? '').slice(0, 8));
 }
 
@@ -176,6 +198,7 @@ const held = new Map(); // pointerId -> button
 const downAt = new Map();
 function press(btn, down) {
   if (!nost) return;
+  if (down && logOn) hideLog();
   const canvas = nost.getCanvas?.();
   if (canvas && document.activeElement !== canvas) canvas.focus?.();
   if (down) {

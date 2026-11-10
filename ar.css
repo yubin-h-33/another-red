@@ -116,3 +116,12 @@ h1 { margin: 0; font-size: 22px; }
 details { color: var(--muted); font-size: 13px; margin-top: 8px; }
 summary { cursor: pointer; color: var(--text); }
 details ul { padding-left: 18px; line-height: 1.6; }
+
+/* 로딩 중 엔진 로그 (첫 버튼 입력 전까지) */
+#log {
+  position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 6px 8px; z-index: 2;
+  max-height: 60%; overflow: hidden; pointer-events: none;
+  font: 10px/1.35 ui-monospace, Menlo, monospace; color: #cfe; background: rgba(0, 0, 0, .55);
+  white-space: pre-wrap; word-break: break-all;
+}
+#log[hidden] { display: none; }
