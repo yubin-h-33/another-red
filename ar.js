@@ -104,7 +104,7 @@ async function download() {
         let buf;
         for (let attempt = 0; ; attempt++) {
           try {
-            const res = await fetch('./game/' + manifest.parts[i]);
+            const res = await fetch((manifest.base ?? './game/') + manifest.parts[i]);
             if (!res.ok) throw new Error('HTTP ' + res.status);
             buf = await res.arrayBuffer();
             break;

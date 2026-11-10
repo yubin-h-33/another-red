@@ -29,5 +29,6 @@
   "part_aay",
   "part_aaz",
   "part_aba"
- ]
+ ],
+ "base": "https://raw.githubusercontent.com/yubin-h-33/another-red/data/"
 }
