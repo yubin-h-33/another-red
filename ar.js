@@ -241,7 +241,7 @@ function showLoading() {
   const tick = () => {
     if (DEBUG) return;
     const sec = Math.round((Date.now() - t0) / 1000);
-    $('log').textContent = `게임 불러오는 중… ${sec}초\n처음 켤 때는 1~3분쯤 걸려요. 화면이 검어도 기다려 주세요.`;
+    $('log').textContent = `게임 불러오는 중… ${sec}초\n보통 10~20초쯤 걸려요. 화면이 검어도 기다려 주세요.`;
   };
   tick();
   loadingTimer = setInterval(tick, 1000);
@@ -320,7 +320,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261111134715');
+    await import('./assets/player.js?v=20261111135053');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -340,7 +340,7 @@ async function saveDirs(create) {
 }
 // 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
 async function installPreload() {
-  const res = await fetch('./ar_preload.rb?v=20261111134715');
+  const res = await fetch('./ar_preload.rb?v=20261111135053');
   if (!res.ok) return;
   const script = await res.arrayBuffer();
   const names = (await saveDirs(true)).map(([name]) => name);
