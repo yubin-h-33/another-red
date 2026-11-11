@@ -122,6 +122,8 @@ button { font: inherit; color: inherit; }
 }
 #menu[hidden], #ask[hidden] { display: none; }
 #ask { position: fixed; inset: 0; z-index: 30; display: flex; justify-content: center; align-items: flex-start; padding: calc(var(--sat, 0px) + 70px) 16px 0; background: rgba(0, 0, 0, .6); }
+#tap { position: fixed; left: 50%; top: calc(var(--sat, 0px) + 90px); transform: translateX(-50%); z-index: 20; padding: 10px 16px; border-radius: 12px; background: rgba(0, 0, 0, .8); border: 1px solid var(--line); font-size: 14px; white-space: nowrap; pointer-events: none; }
+#tap[hidden] { display: none; }
 #ask-help { margin: 0 0 10px; font-size: 15px; }
 #ask-input { width: 100%; height: 46px; margin-bottom: 10px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: #0d0d12; color: inherit; font: inherit; font-size: 17px; box-sizing: border-box; }
 .card {

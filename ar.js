@@ -193,10 +193,32 @@ async function download() {
 const rafOrig = window.requestAnimationFrame.bind(window);
 let frozen = false;
 const heldFrames = [];
-window.requestAnimationFrame = (f) => (frozen ? (heldFrames.push(f), 0) : rafOrig(f));
+// 소리 장치가 멈춰 있을 때(키보드·전화·알림 등으로 iOS 가 끊었을 때)도 프레임을 붙잡아 둔다.
+// 엔진은 소리가 안 돌면 다시 켜질 때까지 화면 전체를 붙잡고 기다려서, 그대로 두면 터치도 안 먹는 채로 멈춘다.
+const audioDown = () => audioCtxs.some((c) => c.state !== 'running' && c.state !== 'closed');
+window.requestAnimationFrame = (f) => {
+  if (!frozen && !audioDown()) return rafOrig(f);
+  heldFrames.push(f);
+  if (!frozen) audioStalled();
+  return 0;
+};
+function pump() {
+  if (frozen || audioDown()) return;
+  clearTimeout(stallTimer);
+  stallTimer = 0;
+  $('tap').hidden = true;
+  for (const f of heldFrames.splice(0)) rafOrig(f);
+}
 function hold(on) {
   frozen = on;
-  if (!on) for (const f of heldFrames.splice(0)) rafOrig(f);
+  pump();
+}
+// 소리 때문에 멈췄으면 먼저 그냥 다시 켜 보고, 안 되면 (iOS 는 터치가 있어야 켜 준다) 터치해 달라고 알린다
+let stallTimer = 0;
+function audioStalled() {
+  if (stallTimer || asleep) return;
+  wakeAudio();
+  stallTimer = setTimeout(() => { stallTimer = 0; if (!frozen && !asleep && audioDown()) { $('tap').hidden = false; wakeAudio(); } }, 700);
 }
 
 // ---------- 로딩 로그: 검은 화면일 때 무슨 일이 일어나는지 보이게 ----------
@@ -261,12 +283,18 @@ let primedAudio = null;
 // 백그라운드에서는 엔진이 resume 을 불러도 소리가 다시 나지 않게 막고,
 // 엔진 출력은 음소거용 볼륨 노드를 거쳐서 나가게 한다
 function guardAudio(ctx) {
+  // 엔진이 직접 resume 을 부르지 못하게 한다. 엔진은 소리 상태가 바뀔 때마다 resume 을 다시 부르는데,
+  // iOS 가 거절하면 (키보드가 떠 있거나 터치 없이 불렀을 때) 거절→다시 부르기가 끝없이 돌아 화면 전체가 멈춘다.
+  // 다시 켜는 건 wakeAudio 에서만, 한 번에 하나씩 한다.
   const resume = ctx.resume.bind(ctx);
-  ctx.resume = () => (document.hidden || asleep ? Promise.resolve() : resume());
+  let waking = null;
+  ctx.arResume = () => (waking ??= resume().catch(() => {}).finally(() => { waking = null; }));
+  ctx.resume = () => Promise.resolve();
   const out = ctx.createGain();
   out.connect(ctx.destination);
   Object.defineProperty(ctx, 'destination', { get: () => out });
   ctx.arOut = out;
+  ctx.addEventListener('statechange', () => { addLog('[ar] audio ' + ctx.state); pump(); });
   audioCtxs.push(ctx);
   return ctx;
 }
@@ -290,12 +318,12 @@ function primeAudio() {
   if (!OrigAudioContext || primedAudio) return;
   try {
     primedAudio = guardAudio(new OrigAudioContext({ latencyHint: 'interactive' }));
-    primedAudio.resume().catch(() => {});
+    primedAudio.arResume();
   } catch {}
 }
 function wakeAudio() {
-  if (document.hidden) return;
-  for (const c of audioCtxs) if (c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => {});
+  if (document.hidden || asleep) return;
+  for (const c of audioCtxs) if (c.state !== 'running' && c.state !== 'closed') c.arResume();
 }
 for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, wakeAudio, true);
 
@@ -320,7 +348,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261111151524');
+    await import('./assets/player.js?v=20261111152856');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -340,7 +368,7 @@ async function saveDirs(create) {
 }
 // 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
 async function installPreload() {
-  const res = await fetch('./ar_preload.rb?v=20261111151524');
+  const res = await fetch('./ar_preload.rb?v=20261111152856');
   if (!res.ok) return;
   const script = await res.arrayBuffer();
   const dirs = await saveDirs(true);
@@ -367,6 +395,7 @@ function askText(help, max, initial) {
     $('ask').hidden = false;
     input.focus();
     const done = (answer) => {
+      wakeAudio(); // 터치 처리 안에서: 키보드가 소리 장치를 끊었으면 여기서 다시 켠다
       $('ask').querySelector('form').onsubmit = $('ask-cancel').onclick = null;
       input.blur();
       $('ask').hidden = true;
