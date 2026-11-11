@@ -1,19 +1,19 @@
 {
- "version": 20261111133051,
+ "version": 20261111134715,
  "files": {
-  "app.html": "26295c22dd6a6f26d82623c69ed284cc4ee5fe4082ba608a6ec9a6b585270935",
-  "app.js": "3ebe7940ab4dfe836b528d55567f6607b924aa0d0b60b6290f307f84f184d79c",
-  "ar.css": "317dcaa4d56434fdf5e0d521636deaded4d49d1ea00c906397c9cac1daf7c99f",
-  "ar.js": "566164b5c13b8124e6e51d7540acb87039702e835e448532b7a09f8c6368e05d",
+  "app.html": "7d1699af6a5a5d9da5b36961035516483a74b91fee708a4799b6dc487bffe1f3",
+  "app.js": "dd25ff9e69513458897eef8f5eed31250d977261455bfb4c00e9545705014608",
+  "ar.css": "5f2a642a78a52ffa2023d826af4d1d7bf5667f0ad5a0b210b8a5ea2c1f0e2a37",
+  "ar.js": "593b60082e1afbce7d2e6f3c7b7e9015c2439da5a4754142d1f92cce3fea6342",
   "ar_preload.rb": "417807867b15c61a0db884b3a0aff1adbff7fa57a6ebc47fc3d6c84e64b75320",
   "assets/player.css": "651fd512a7c552715d7f6f254023e99e048c7e2750c5afbff5f90633efa0048f",
   "assets/player.js": "04788b15074b86b4748ab0369a25eefd7424fc7fcdbd45c26df124fff73e946c",
   "coi-serviceworker.min.js": "03d2f35be3249f5eeb4e214c5daf2be8067e2b24630aaef26a1247b723f2d05d",
   "icon.png": "5e53824bdc04a1fbb554afe7a0c0cc0f317bbceb9de9122d04e95eef05c8a619",
-  "index.html": "e48eea82016387d93ee26c3e522cedf917ae2e0b75e178bceef2c331c4afe832",
+  "index.html": "63e23a48df87cc4caef83f927df749ed025a7de9a0a8c7dd489dcb1ff6bc6169",
   "manifest.webmanifest": "224d15b87a0a4b930ace7c74e8f07e29ee24d6c8f125b365946e0e4f522be035",
   "mkxp-z_libretro.js": "562fdc13b8b587319b0116b024edf1f84578f5f7e881ce72496bf0d82101fdaf",
   "mkxp-z_libretro.wasm": "613ebf7efb8c18241b45b37efeb0ec62df7b5c9ad999335fb46754eaed0ced0c",
-  "rom.html": "a912919630d6ff3096557da6ee25c0123942f3f69aadb30131adc6ce15104f27"
+  "rom.html": "574d3a58bfcdbca2d4701c6556dda8f004bb31e0542cad204b75c431a37b4bd2"
  }
 }

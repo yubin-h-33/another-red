@@ -134,8 +134,11 @@ h1 { margin: 0; font-size: 22px; }
 .card button.primary { background: var(--red-dark); border-color: var(--red); font-weight: 700; }
 .card button:disabled { opacity: .45; }
 .row { display: flex; gap: 8px; }
-#folder-hint { color: var(--muted); font-size: 13px; margin: 0 0 6px; }
-#folder-hint[hidden], #folder[hidden], #library[hidden] { display: none; }
+#library[hidden] { display: none; }
+/* 웹과 앱에서 다르게 보이는 문구 */
+body.app .web-only, body:not(.app) .app-only { display: none; }
+details p { margin: 8px 0; line-height: 1.5; }
+details .row { margin-top: 8px; }
 #hint { color: var(--muted); font-size: 13px; min-height: 1em; margin: 6px 0; }
 details { color: var(--muted); font-size: 13px; margin-top: 8px; }
 summary { cursor: pointer; color: var(--text); }

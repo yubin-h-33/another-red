@@ -320,7 +320,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261111133051');
+    await import('./assets/player.js?v=20261111134715');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -340,7 +340,7 @@ async function saveDirs(create) {
 }
 // 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
 async function installPreload() {
-  const res = await fetch('./ar_preload.rb?v=20261111133051');
+  const res = await fetch('./ar_preload.rb?v=20261111134715');
   if (!res.ok) return;
   const script = await res.arrayBuffer();
   const names = (await saveDirs(true)).map(([name]) => name);
@@ -645,16 +645,11 @@ async function syncIn(names) {
     await opfs({ cmd: 'put', path: name, buf }, [buf]);
   }
 }
-function showFolder(info) {
-  $('folder').hidden = $('folder-hint').hidden = false;
-  $('folder-hint').textContent = `세이브 자동 저장 위치: ${info.label}` + (info.outside ? '' : ' (앱을 지우면 같이 지워져요. 폴더를 고르면 남아요.)');
-}
 let appReady = false;
 async function appSaves() {
   if (!APP || appReady) return;
   appReady = true;
   try {
-    showFolder(await APP.postMessage('folder'));
     // 새로 깐 앱이면 폴더에 남아 있던 세이브를 가져온다
     const names = await folderSaves();
     if (names.length && !(await listSaves(await root(), '', [])).length) {
@@ -665,24 +660,8 @@ async function appSaves() {
     setInterval(syncOut, 5000);
   } catch (err) { addLog('[ar] 세이브 폴더 오류: ' + err.message); }
 }
-async function pickFolder() {
-  try {
-    const info = await APP.postMessage('pick');
-    if (!info) return;
-    showFolder(info);
-    synced.clear();
-    const names = await folderSaves();
-    const mine = (await listSaves(await root(), '', [])).length;
-    if (names.length && (!mine || confirm(`이 폴더에 세이브 파일 ${names.length}개가 있어요. 불러올까요?\n\n확인: 폴더의 세이브를 불러와요 (지금 세이브는 바뀌어요).\n취소: 지금 세이브를 이 폴더에 덮어 저장해요.`))) {
-      await syncIn(names);
-      if (nost) { alert('불러왔어요. 적용하려면 다시 엽니다.'); return location.reload(); }
-      $('hint').textContent = `폴더에서 세이브 파일 ${names.length}개를 불러왔어요.`;
-    }
-    await syncOut();
-  } catch (err) { $('hint').textContent = '폴더 설정 실패: ' + err.message; }
-}
-$('folder').addEventListener('click', pickFolder);
 if (APP) {
+  document.body.classList.add('app');
   $('library').hidden = false;
   $('library').addEventListener('click', async () => { await syncOut(); FRAMED ? window.parent.postMessage({ ar: 'library' }, location.origin) : (location.href = 'app.html'); });
 }

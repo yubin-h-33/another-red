@@ -143,10 +143,10 @@ async function load() {
 }
 
 function showFolder(info) {
-  $('notice').classList.toggle('warn', !info.outside);
-  $('notice-title').textContent = info.outside ? '세이브는 앱을 지워도 남아요' : '지금은 앱을 지우면 세이브도 같이 지워져요';
-  $('folder-hint').textContent = `세이브 저장 위치: ${info.label}`;
-  $('folder').textContent = info.outside ? '세이브 폴더 바꾸기' : '세이브 폴더 고르기';
+  $('notice').hidden = info.outside;
+  $('save-line').hidden = !info.outside;
+  $('save-line').textContent = `세이브 저장 위치: ${info.label} · 앱을 지워도 남아요`;
+  $('folder2').textContent = info.outside ? '세이브 폴더 바꾸기' : '세이브 폴더 고르기';
 }
 
 $('add').addEventListener('click', async () => {
@@ -154,10 +154,12 @@ $('add').addEventListener('click', async () => {
   if (names?.length) $('hint').textContent = `${names.length}개 추가했어요.`;
   load();
 });
-$('folder').addEventListener('click', async () => {
-  const info = await APP.postMessage('pick');
-  if (info) showFolder(info);
-});
+for (const id of ['folder', 'folder2']) {
+  $(id).addEventListener('click', async () => {
+    const info = await APP.postMessage('pick');
+    if (info) showFolder(info);
+  });
+}
 // 앱이 새 버전을 받아 두면 알려 준다. 누르면 켜 둔 게임은 꺼지고 새 버전으로 다시 열린다.
 window.arOnUpdate = () => ($('update').hidden = false);
 if (window.arUpdateReady) window.arOnUpdate();

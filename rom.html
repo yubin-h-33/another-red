@@ -79,6 +79,13 @@
     window.EJS_CacheLimit = 0; // 롬은 이미 앱 안에 있으니 브라우저 저장소에 또 복사하지 않는다
     window.EJS_backgroundColor = '#000';
     window.EJS_defaultOptions = { 'virtual-gamepad': 'disabled' }; // 아래의 자체 패드를 쓴다
+    // 메뉴에는 에뮬에 필요한 것만: 일시정지, 다시 시작, 소리, 상태 저장/불러오기, 설정, 치트
+    window.EJS_Buttons = {
+      fullscreen: false, netplay: false, cacheManager: false, screenRecord: false, screenshot: false, gamepad: false,
+      saveSavFiles: false, loadSavFiles: false, exitEmulation: false, quickSave: false, quickLoad: false, contextMenu: false, contextMenuButton: false,
+      restart: { displayName: '처음부터' }, playPause: { displayName: '일시정지' }, play: { displayName: '계속' }, pause: { displayName: '일시정지' },
+      saveState: { displayName: '상태 저장' }, loadState: { displayName: '상태 불러오기' }, cheat: { displayName: '치트' }, settings: { displayName: '설정' },
+    };
 
     // ---------- 화면 비율과 패드 ----------
     const core = q.get('core');
@@ -164,6 +171,8 @@
         }
       } catch {}
       setInterval(pushSave, 5000);
+      // 휴대폰에서는 설정으로 꺼지지 않는 항목이라 직접 숨긴다
+      for (const b of document.querySelectorAll('#game button')) if (b.textContent.trim() === 'Context Menu') b.style.display = 'none';
     };
     // 상태 저장 / 불러오기도 세이브 폴더로
     window.EJS_onSaveState = ({ state }) => {
