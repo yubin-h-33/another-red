@@ -120,7 +120,10 @@ button { font: inherit; color: inherit; }
   position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
   background: rgba(10, 9, 12, .92); padding: 16px; overflow-y: auto; touch-action: pan-y;
 }
-#menu[hidden] { display: none; }
+#menu[hidden], #ask[hidden] { display: none; }
+#ask { position: fixed; inset: 0; z-index: 30; display: flex; justify-content: center; align-items: flex-start; padding: calc(var(--sat, 0px) + 70px) 16px 0; background: rgba(0, 0, 0, .6); }
+#ask-help { margin: 0 0 10px; font-size: 15px; }
+#ask-input { width: 100%; height: 46px; margin-bottom: 10px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: #0d0d12; color: inherit; font: inherit; font-size: 17px; box-sizing: border-box; }
 .card {
   width: 100%; max-width: 420px; background: var(--panel); border: 1px solid var(--line);
   border-radius: 16px; padding: 22px 18px;

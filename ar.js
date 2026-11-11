@@ -320,7 +320,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261111135053');
+    await import('./assets/player.js?v=20261111151524');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -340,12 +340,46 @@ async function saveDirs(create) {
 }
 // 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
 async function installPreload() {
-  const res = await fetch('./ar_preload.rb?v=20261111135053');
+  const res = await fetch('./ar_preload.rb?v=20261111151524');
   if (!res.ok) return;
   const script = await res.arrayBuffer();
-  const names = (await saveDirs(true)).map(([name]) => name);
+  const dirs = await saveDirs(true);
+  // 지난번에 입력 도중 앱이 꺼졌으면 요청 파일이 남아 있다 → 지우지 않으면 켜자마자 입력창이 뜬다
+  for (const [, dir] of dirs) {
+    const stale = [];
+    for await (const name of dir.keys()) if (name.startsWith('ar_in_')) stale.push(name);
+    for (const name of stale) await dir.removeEntry(name).catch(() => {});
+  }
+  const names = dirs.map(([name]) => name);
   if (!CUSTOM && !names.length) names.push('Pokmon; Another Red-sxa4980p'); // 처음 켤 때는 폴더가 아직 없다
   for (const name of names) await opfs({ cmd: 'put', path: [...SAVES, name, 'ar_preload.rb'].join('/'), buf: script.slice(0) });
+}
+// 입력창은 페이지 안에 직접 띄운다. 시스템 입력창(prompt)은 닫힌 뒤 iOS 가 소리 장치를 다시 켜는 동안
+// 화면 전체가 멈춰서 게임이 심하게 끊긴다. 입력하는 동안은 메뉴를 열었을 때처럼 게임을 붙잡아 둔다.
+function askText(help, max, initial) {
+  return new Promise((resolve) => {
+    const input = $('ask-input');
+    hold(true);
+    muteAudio(true);
+    releaseAll();
+    $('ask-help').textContent = `${help} (최대 ${max}자)`;
+    input.value = initial;
+    $('ask').hidden = false;
+    input.focus();
+    const done = (answer) => {
+      $('ask').querySelector('form').onsubmit = $('ask-cancel').onclick = null;
+      input.blur();
+      $('ask').hidden = true;
+      resolve(answer);
+    };
+    $('ask').querySelector('form').onsubmit = (e) => { e.preventDefault(); done(input.value); };
+    $('ask-cancel').onclick = () => done(null);
+  });
+}
+function endAsk() {
+  if (asleep || !$('menu').hidden) return;
+  hold(false);
+  if (!unseen) muteAudio(false);
 }
 const asked = new Set();
 let asking = false;
@@ -361,9 +395,8 @@ async function pollNameInput() {
         const path = [...SAVES, dirName, name.slice(0, -4)].join('/');
         const put = (ext, text) => { const buf = new TextEncoder().encode(text).buffer; return opfs({ cmd: 'put', path: path + ext, buf }, [buf]); };
         await put('.ack', '1');
-        releaseAll();
-        const answer = prompt(`${help} (최대 ${max}자)`, initial);
-        await put('.res', answer === null ? 'CANCEL' : 'OK\n' + answer);
+        const answer = await askText(help, max, initial);
+        await put('.res', answer === null ? 'CANCEL' : 'OK\n' + answer).finally(endAsk);
       }
     }
   } catch {} finally { asking = false; }
@@ -486,7 +519,7 @@ function wakeGame() {
   if (!asleep || document.hidden || frameHidden) return;
   asleep = false;
   addLog('[ar] wake');
-  if ($('menu').hidden) {
+  if ($('menu').hidden && $('ask').hidden) {
     hold(false);
     if (!unseen) muteAudio(false);
   }
