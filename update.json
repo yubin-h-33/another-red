@@ -1,0 +1,19 @@
+{
+ "version": 20261111132921,
+ "files": {
+  "app.html": "26295c22dd6a6f26d82623c69ed284cc4ee5fe4082ba608a6ec9a6b585270935",
+  "app.js": "3ebe7940ab4dfe836b528d55567f6607b924aa0d0b60b6290f307f84f184d79c",
+  "ar.css": "317dcaa4d56434fdf5e0d521636deaded4d49d1ea00c906397c9cac1daf7c99f",
+  "ar.js": "ddedb8936e1690491d8e28497151bc3526df6c993249fc9ca76e0d222eb54011",
+  "ar_preload.rb": "417807867b15c61a0db884b3a0aff1adbff7fa57a6ebc47fc3d6c84e64b75320",
+  "assets/player.css": "651fd512a7c552715d7f6f254023e99e048c7e2750c5afbff5f90633efa0048f",
+  "assets/player.js": "04788b15074b86b4748ab0369a25eefd7424fc7fcdbd45c26df124fff73e946c",
+  "coi-serviceworker.min.js": "03d2f35be3249f5eeb4e214c5daf2be8067e2b24630aaef26a1247b723f2d05d",
+  "icon.png": "5e53824bdc04a1fbb554afe7a0c0cc0f317bbceb9de9122d04e95eef05c8a619",
+  "index.html": "302977dac49e592c164e48a1015dea121a64a72fd66e13ef46726d84cec8eb11",
+  "manifest.webmanifest": "224d15b87a0a4b930ace7c74e8f07e29ee24d6c8f125b365946e0e4f522be035",
+  "mkxp-z_libretro.js": "562fdc13b8b587319b0116b024edf1f84578f5f7e881ce72496bf0d82101fdaf",
+  "mkxp-z_libretro.wasm": "613ebf7efb8c18241b45b37efeb0ec62df7b5c9ad999335fb46754eaed0ced0c",
+  "rom.html": "a912919630d6ff3096557da6ee25c0123942f3f69aadb30131adc6ce15104f27"
+ }
+}

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>게임</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111014; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; -webkit-tap-highlight-color: transparent; }
+  /* 세로: 위에 게임 화면(기종 비율에 맞춤), 아래 남는 곳에 패드 */
+  #game { position: fixed; top: var(--sat, env(safe-area-inset-top)); left: 0; width: 100vw; background: #000;
+    height: min(calc(100vw * var(--ratio)), calc(100dvh - var(--sat, env(safe-area-inset-top)) - var(--sab, env(safe-area-inset-bottom)) - 176px)); }
+  #pad { position: fixed; left: 0; right: 0; bottom: var(--sab, env(safe-area-inset-bottom)); touch-action: none; }
+  #pad button, #pad .key { position: absolute; display: flex; align-items: center; justify-content: center; margin: 0; padding: 0;
+    border: 1px solid #34303d; background: #2a2731; color: #f2eff7; font: 600 15px/1 inherit; }
+  #pad .on { background: #4a4556; }
+  #row { position: absolute; top: 4px; left: 8px; right: 8px; height: 34px; }
+  #row .key { top: 0; height: 34px; border-radius: 10px; font-size: 13px; }
+  #k-l { left: 0; width: 70px; } #k-r { right: 0; width: 70px; }
+  #k-select { left: calc(50% - 30px); width: 60px; } #k-start { left: calc(50% + 36px); width: 60px; }
+  #back { left: calc(50% - 96px); width: 60px; top: 0; height: 34px; border-radius: 10px; font-size: 13px; }
+  #dpad { position: absolute; left: 14px; bottom: 6px; width: var(--c); height: var(--c); }
+  #dpad i { position: absolute; background: #2a2731; border: 1px solid #34303d; border-radius: 8px; }
+  #dpad .v { left: 33.3%; width: 33.4%; top: 0; height: 100%; } #dpad .h { top: 33.3%; height: 33.4%; left: 0; width: 100%; }
+  #dpad b { position: absolute; background: #4a4556; border-radius: 6px; opacity: 0; }
+  #dpad .up { left: 36%; width: 28%; top: 3%; height: 28%; } #dpad .down { left: 36%; width: 28%; bottom: 3%; height: 28%; }
+  #dpad .left { top: 36%; height: 28%; left: 3%; width: 28%; } #dpad .right { top: 36%; height: 28%; right: 3%; width: 28%; }
+  #dpad b.on { opacity: 1; }
+  #face { position: absolute; right: 14px; bottom: 6px; width: var(--c); height: var(--c); }
+  #face .key { width: 38%; height: 38%; border-radius: 50%; font-size: 17px; }
+  #k-x { left: 31%; top: 0; } #k-b { left: 31%; bottom: 0; } #k-y { left: 0; top: 31%; } #k-a { right: 0; top: 31%; }
+  #pad #k-a { background: #a82727; border-color: #e03c3c; }
+  #pad #k-a.on { background: #e03c3c; }
+  /* 버튼이 둘뿐인 기종: 크게, 비스듬히 */
+  #face.two .key { width: 46%; height: 46%; font-size: 20px; }
+  #face.two #k-b { left: 0; bottom: 6%; } #face.two #k-a { right: 0; top: 6%; }
+  [hidden] { display: none !important; }
+  /* 가로: 화면을 꽉 채우고 패드는 양옆에 반투명으로 */
+  @media (orientation: landscape) {
+    #game { top: 0; left: var(--sal, env(safe-area-inset-left)); right: var(--sar, env(safe-area-inset-right)); width: auto; height: 100dvh; }
+    #pad { top: 0; bottom: 0; opacity: .55; pointer-events: none; }
+    #pad > * { pointer-events: auto; }
+    #row { top: 8px; left: calc(var(--sal, env(safe-area-inset-left)) + 8px); right: calc(var(--sar, env(safe-area-inset-right)) + 8px); }
+    #dpad { left: calc(var(--sal, env(safe-area-inset-left)) + 14px); bottom: 20px; } #face { right: calc(var(--sar, env(safe-area-inset-right)) + 14px); bottom: 20px; }
+  }
+</style>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="pad">
+    <div id="row">
+      <div class="key" id="k-l" data-k="l">L</div>
+      <button id="back">‹ 목록</button>
+      <div class="key" id="k-select" data-k="select">Select</div>
+      <div class="key" id="k-start" data-k="start">Start</div>
+      <div class="key" id="k-r" data-k="r">R</div>
+    </div>
+    <div id="dpad"><i class="v"></i><i class="h"></i><b class="up"></b><b class="down"></b><b class="left"></b><b class="right"></b></div>
+    <div id="face">
+      <div class="key" id="k-x" data-k="x">X</div>
+      <div class="key" id="k-y" data-k="y">Y</div>
+      <div class="key" id="k-a" data-k="a">A</div>
+      <div class="key" id="k-b" data-k="b">B</div>
+    </div>
+  </div>
+  <script>
+    // 롬(NDS, GBA 등)은 EmulatorJS 로 돌린다. 세이브는 세이브 폴더(/saves/roms/)에 자동으로 복사한다.
+    const q = new URLSearchParams(location.search);
+    const name = q.get('game');
+    const baseName = name.slice(0, name.lastIndexOf('.'));
+    const save = (file) => '/saves/roms/' + encodeURIComponent(file);
+    window.EJS_player = '#game';
+    window.EJS_core = q.get('core');
+    window.EJS_gameUrl = '/games/' + encodeURIComponent(name);
+    window.EJS_gameName = baseName;
+    window.EJS_pathtodata = 'ejs/';
+    window.EJS_startOnLoaded = true;
+    window.EJS_language = 'en-US';
+    window.EJS_CacheLimit = 0; // 롬은 이미 앱 안에 있으니 브라우저 저장소에 또 복사하지 않는다
+    window.EJS_backgroundColor = '#000';
+    window.EJS_defaultOptions = { 'virtual-gamepad': 'disabled' }; // 아래의 자체 패드를 쓴다
+
+    // ---------- 화면 비율과 패드 ----------
+    const core = q.get('core');
+    const RATIO = { nds: 1.5, gba: 2 / 3, gb: 0.9, nes: 0.75, snes: 0.75 };
+    document.documentElement.style.setProperty('--ratio', RATIO[core] ?? 0.75);
+    const two = !['nds', 'snes'].includes(core); // A, B 만 있는 기종
+    document.getElementById('face').classList.toggle('two', two);
+    for (const k of two ? ['x', 'y'] : []) document.getElementById('k-' + k).hidden = true;
+    for (const k of ['gb', 'nes'].includes(core) ? ['l', 'r'] : []) document.getElementById('k-' + k).hidden = true;
+    const pad = document.getElementById('pad'), game = document.getElementById('game');
+    function layout() {
+      if (matchMedia('(orientation: landscape)').matches) return pad.style.setProperty('--c', '130px');
+      const top = game.getBoundingClientRect().bottom;
+      pad.style.top = top + 'px';
+      // 십자키/버튼 크기: 남는 높이에 맞추되 너무 크지 않게, 화면이 길게 남으면 엄지 높이쯤에 오도록 아래로 붙인다
+      pad.style.setProperty('--c', Math.max(110, Math.min(pad.getBoundingClientRect().height - 50, 170, innerWidth * 0.42)) + 'px');
+    }
+    addEventListener('resize', layout);
+    layout();
+
+    const IDX = { b: 0, y: 1, select: 2, start: 3, up: 4, down: 5, left: 6, right: 7, a: 8, x: 9, l: 10, r: 11 };
+    const down = new Set();
+    const touches = new Map(); // pointerId -> 누르고 있는 키들
+    function apply() {
+      const want = new Set([...touches.values()].flat());
+      for (const k of Object.keys(IDX)) {
+        if (want.has(k) === down.has(k)) continue;
+        want.has(k) ? down.add(k) : down.delete(k);
+        try { window.EJS_emulator?.gameManager?.simulateInput(0, IDX[k], want.has(k) ? 1 : 0); } catch {}
+        (document.querySelector(`[data-k="${k}"]`) ?? document.querySelector('#dpad .' + k))?.classList.toggle('on', want.has(k));
+      }
+    }
+    const dpad = document.getElementById('dpad');
+    function keysAt(x, y) {
+      const r = dpad.getBoundingClientRect();
+      // 십자키: 주변까지 넉넉하게 받고, 중심에서의 방향으로 8방향을 정한다
+      if (x > r.left - 14 && x < r.right + 14 && y > r.top - 14 && y < r.bottom + 14) {
+        const dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+        if (Math.hypot(dx, dy) < r.width * 0.12) return [];
+        const a = Math.atan2(dy, dx) * 180 / Math.PI, keys = [];
+        if (a > -67.5 && a < 67.5) keys.push('right');
+        if (a > 22.5 && a < 157.5) keys.push('down');
+        if (a > 112.5 || a < -112.5) keys.push('left');
+        if (a > -157.5 && a < -22.5) keys.push('up');
+        return keys;
+      }
+      // 버튼: 손가락이 걸친 버튼은 모두 누른다 (A+B 같이 누르기)
+      const keys = [];
+      for (const el of pad.querySelectorAll('.key:not([hidden])')) {
+        const b = el.getBoundingClientRect(), m = 6;
+        if (x > b.left - m && x < b.right + m && y > b.top - m && y < b.bottom + m) keys.push(el.dataset.k);
+      }
+      return keys;
+    }
+    const touch = (e) => { if (e.target.id === 'back') return; e.preventDefault(); touches.set(e.pointerId, keysAt(e.clientX, e.clientY)); apply(); };
+    pad.addEventListener('pointerdown', (e) => { if (e.target.id !== 'back') pad.setPointerCapture(e.pointerId); touch(e); });
+    pad.addEventListener('pointermove', (e) => { if (touches.has(e.pointerId)) touch(e); });
+    for (const ev of ['pointerup', 'pointercancel']) pad.addEventListener(ev, (e) => { touches.delete(e.pointerId); apply(); });
+
+    const gm = () => window.EJS_emulator.gameManager;
+    const sum = (b) => { let h = 2166136261; for (let i = 0; i < b.length; i++) h = Math.imul(h ^ b[i], 16777619); return b.length + ':' + (h >>> 0); };
+    let last = null, saveFile = null;
+    async function pushSave() {
+      try {
+        const data = gm().getSaveFile();
+        if (!data?.length || sum(data) === last) return;
+        const sig = sum(data);
+        if ((await fetch(save(saveFile), { method: 'PUT', body: data })).ok) last = sig;
+      } catch {}
+    }
+    window.EJS_onGameStart = async () => {
+      const path = gm().getSaveFilePath();
+      saveFile = path.split('/').pop();
+      try {
+        // 세이브 폴더에 있는 세이브가 기준 (앱을 새로 깔았을 때도 여기서 돌아온다)
+        const r = await fetch(save(saveFile), { cache: 'no-store' });
+        if (r.ok) {
+          const bytes = new Uint8Array(await r.arrayBuffer());
+          gm().FS.mkdirTree(path.slice(0, path.lastIndexOf('/')));
+          gm().FS.writeFile(path, bytes);
+          gm().loadSaveFiles();
+          last = sum(bytes);
+        }
+      } catch {}
+      setInterval(pushSave, 5000);
+    };
+    // 상태 저장 / 불러오기도 세이브 폴더로
+    window.EJS_onSaveState = ({ state }) => {
+      fetch(save(baseName + '.state'), { method: 'PUT', body: state })
+        .then((r) => window.EJS_emulator.displayMessage(r.ok ? '상태 저장됨' : '상태 저장 실패'));
+    };
+    window.EJS_onLoadState = async () => {
+      const r = await fetch(save(baseName + '.state'), { cache: 'no-store' });
+      if (!r.ok) return window.EJS_emulator.displayMessage('저장된 상태가 없어요');
+      gm().loadState(new Uint8Array(await r.arrayBuffer()));
+      window.EJS_emulator.displayMessage('상태 불러옴');
+    };
+    // 게임 목록 뒤에 숨어 있는 동안은 멈춰 둔다
+    window.addEventListener('message', (e) => {
+      const em = window.EJS_emulator;
+      if (e.origin !== location.origin || !em?.started) return;
+      if (e.data?.ar === 'hide') { pushSave(); em.pause(); }
+      if (e.data?.ar === 'show') { em.play(); layout(); }
+    });
+    document.addEventListener('visibilitychange', () => {
+      const e = window.EJS_emulator;
+      if (!e?.started) return;
+      if (document.hidden) { pushSave(); e.pause(); } else e.play();
+    });
+    document.getElementById('back').addEventListener('click', async () => {
+      if (window.EJS_emulator?.started) await pushSave();
+      if (window.parent !== window) window.parent.postMessage({ ar: 'library' }, location.origin);
+      else location.href = 'app.html';
+    });
+  </script>
+  <script src="ejs/loader.js"></script>
+</body>
+</html>

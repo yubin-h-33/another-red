@@ -22,7 +22,7 @@ button { font: inherit; color: inherit; }
 /* 게임 화면: 세로모드에서는 위쪽 4:3, 아래는 패드 */
 #screen {
   position: fixed; left: 0; right: 0;
-  top: env(safe-area-inset-top);
+  top: var(--sat, env(safe-area-inset-top));
   width: 100vw; height: 75vw;
   background: #000;
 }
@@ -39,8 +39,8 @@ button { font: inherit; color: inherit; }
 /* 패드: 일반 게임기 배치 — 위 모서리에 L/R, 왼쪽 십자키, 오른쪽 A/B/가방, 가운데 작은 기능 버튼 */
 #pad {
   position: fixed; left: 0; right: 0;
-  top: calc(env(safe-area-inset-top) + 75vw);
-  bottom: env(safe-area-inset-bottom);
+  top: calc(var(--sat, env(safe-area-inset-top)) + 75vw);
+  bottom: var(--sab, env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
@@ -107,12 +107,12 @@ button { font: inherit; color: inherit; }
   #pad { display: block; top: 0; bottom: 0; padding: 0; pointer-events: none; }
   #pad[hidden] { display: none; }
   #pad > * { pointer-events: auto; position: absolute; opacity: .8; }
-  #btn-l { left: calc(env(safe-area-inset-left) + 10px); top: 10px; width: 120px; }
-  #btn-r { right: calc(env(safe-area-inset-right) + 10px); top: 10px; width: 120px; }
-  #mid { left: calc(env(safe-area-inset-left) + 10px); top: 64px; }
-  #sys { right: calc(env(safe-area-inset-right) + 10px); top: 64px; flex-direction: column; gap: 10px; }
-  #dpad { left: calc(env(safe-area-inset-left) + 10px); bottom: 14px; width: 150px; }
-  #face { right: calc(env(safe-area-inset-right) + 10px); bottom: 14px; width: 150px; }
+  #btn-l { left: calc(var(--sal, env(safe-area-inset-left)) + 10px); top: 10px; width: 120px; }
+  #btn-r { right: calc(var(--sar, env(safe-area-inset-right)) + 10px); top: 10px; width: 120px; }
+  #mid { left: calc(var(--sal, env(safe-area-inset-left)) + 10px); top: 64px; }
+  #sys { right: calc(var(--sar, env(safe-area-inset-right)) + 10px); top: 64px; flex-direction: column; gap: 10px; }
+  #dpad { left: calc(var(--sal, env(safe-area-inset-left)) + 10px); bottom: 14px; width: 150px; }
+  #face { right: calc(var(--sar, env(safe-area-inset-right)) + 10px); bottom: 14px; width: 150px; }
 }
 
 /* 시작/설정 메뉴 */
@@ -134,6 +134,8 @@ h1 { margin: 0; font-size: 22px; }
 .card button.primary { background: var(--red-dark); border-color: var(--red); font-weight: 700; }
 .card button:disabled { opacity: .45; }
 .row { display: flex; gap: 8px; }
+#folder-hint { color: var(--muted); font-size: 13px; margin: 0 0 6px; }
+#folder-hint[hidden], #folder[hidden], #library[hidden] { display: none; }
 #hint { color: var(--muted); font-size: 13px; min-height: 1em; margin: 6px 0; }
 details { color: var(--muted); font-size: 13px; margin-top: 8px; }
 summary { cursor: pointer; color: var(--text); }

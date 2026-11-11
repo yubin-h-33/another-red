@@ -1,7 +1,14 @@
 // 어나더레드 웹 플레이어: 게임 데이터 다운로드(OPFS), 터치 패드, 세이브 백업/복원.
 // 엔진은 assets/player.js (mkxp-z libretro + Nostalgist, build_site.py 가 패치)
 
-const GAME_FILE = 'AnotherRed.mkxpz';
+// 앱에서는 다른 RPG Maker 게임도 연다: ?game=<OPFS 파일 이름>&src=<Games 폴더의 원본 파일>
+const params = new URLSearchParams(location.search);
+const BUILTIN = 'AnotherRed.mkxpz';
+const GAME_FILE = params.get('game') || BUILTIN;
+const CUSTOM = GAME_FILE !== BUILTIN;
+const SRC = params.get('src');
+window.__arFile = GAME_FILE;
+window.__arTitle = CUSTOM ? GAME_FILE.replace(/\.mkxpz$/, '') : '포켓몬스터 어나더 레드';
 const DONE_KEY = 'ar-game-hash';
 const $ = (id) => document.getElementById(id);
 
@@ -74,6 +81,8 @@ async function refresh() {
     return setStatus('준비 중… 잠시 후에도 그대로면 앱을 완전히 닫았다가 다시 열어주세요.');
   }
   sessionStorage.removeItem('ar-coi-tries');
+  await appSaves();
+  if (CUSTOM) return refreshCustom();
   manifest = await (await fetch('./game/manifest.json', { cache: 'no-store' })).json();
   const size = await gameFileSize();
   const ready = localStorage.getItem(DONE_KEY) === manifest.hash && size === manifest.size;
@@ -93,6 +102,45 @@ async function refresh() {
     if (est.quota && est.quota - est.usage < manifest.size - size)
       $('hint').textContent = `저장공간이 부족할 수 있어요 (남은 할당량 ${mb(est.quota - est.usage)}).`;
   } catch {}
+}
+
+// 가져온 게임: Games 폴더의 원본을 엔진이 읽을 수 있는 저장공간으로 한 번 옮긴다
+async function refreshCustom() {
+  document.querySelector('#menu h1').textContent = window.__arTitle;
+  document.querySelector('#menu .sub').textContent = 'RPG Maker 게임';
+  $('download').hidden = true;
+  const list = SRC ? await (await fetch('/games/', { cache: 'no-store' })).json() : [];
+  const src = list.find((f) => f.name === SRC);
+  if (src && !nost) {
+    $('start').hidden = true;
+    try {
+      const PART = 20 * 1048576;
+      await opfs({ cmd: 'open', path: GAME_FILE, truncate: 0 });
+      try {
+        for (let at = 0; at < src.size; at += PART) {
+          setStatus(`게임 준비 중… ${mb(at)} / ${mb(src.size)}`);
+          setProgress(at / src.size);
+          const res = await fetch('/games/' + encodeURIComponent(SRC), { headers: { Range: `bytes=${at}-${Math.min(at + PART, src.size) - 1}` } });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const buf = await res.arrayBuffer();
+          await opfs({ cmd: 'write', at, buf }, [buf]);
+        }
+      } finally {
+        await opfs({ cmd: 'close' });
+      }
+      if ((await gameFileSize()) !== src.size) throw new Error('파일 크기가 맞지 않아요');
+      // 같은 파일이 두 벌 남지 않게 원본은 지운다
+      await fetch('/games/' + encodeURIComponent(SRC), { method: 'DELETE' });
+    } catch (err) {
+      setProgress(null);
+      return setStatus('게임 준비 실패: ' + err.message);
+    }
+    setProgress(null);
+  }
+  const size = await gameFileSize();
+  $('start').hidden = !size || !!nost;
+  $('resume').hidden = !nost;
+  setStatus(nost ? '일시정지됨' : size ? `준비 완료 (${mb(size)})` : '게임 파일을 찾을 수 없어요. 목록에서 다시 추가해 주세요.');
 }
 
 async function download() {
@@ -139,12 +187,24 @@ async function download() {
   await refresh();
 }
 
+// ---------- 일시정지 ----------
+// 엔진의 일시정지(PAUSE_TOGGLE)는 이 코어에서 다시 풀 때 게임이 멈춰버린다.
+// 대신 엔진이 매 프레임 부르는 requestAnimationFrame 을 붙잡아 둔다 (홈으로 나갔을 때 iOS 가 하는 것과 같은 방식).
+const rafOrig = window.requestAnimationFrame.bind(window);
+let frozen = false;
+const heldFrames = [];
+window.requestAnimationFrame = (f) => (frozen ? (heldFrames.push(f), 0) : rafOrig(f));
+function hold(on) {
+  frozen = on;
+  if (!on) for (const f of heldFrames.splice(0)) rafOrig(f);
+}
+
 // ---------- 로딩 로그: 검은 화면일 때 무슨 일이 일어나는지 보이게 ----------
 const logLines = [];
 let logOn = false;
-const DEBUG = new URLSearchParams(location.search).has('debug');
+const DEBUG = new URLSearchParams(location.search).has('debug') || !!sessionStorage.getItem('ar-debug');
 function addLog(text) {
-  if (DEBUG) try { navigator.sendBeacon('/log', String(text)); } catch {}
+  if (DEBUG) try { navigator.sendBeacon('/log', (performance.now() / 1000).toFixed(1) + 's ' + String(text).slice(0, 300)); } catch {}
   // 게임이 화면 크기를 정하면 첫 화면이 나온 것
   if (String(text).includes('SET_GEOMETRY')) onGameShown();
   if (!logOn || !DEBUG) return;
@@ -255,27 +315,73 @@ async function start() {
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
   // 번들이 처음 한 번 강제로 새로고침하는 단계를 건너뛴다 (coi 는 이미 확인됨)
   sessionStorage.setItem('nostalgist status for mkxp-z @ ' + location.href, 'ready');
+  await installPreload().catch((err) => addLog('[ar] preload: ' + err.message));
   $('menu').hidden = true;
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261110205842');
+    await import('./assets/player.js?v=20261111132921');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
   }
 }
 
+// ---------- 이름 입력 (한글) ----------
+// 게임은 키보드 글자를 못 받는다. 게임 쪽 스크립트(ar_preload.rb)가 세이브 폴더에 요청 파일을 쓰면
+// 여기서 입력창을 띄우고 답을 파일로 돌려준다.
+const SAVES = ['saves', 'mkxp-z', 'mkxp-z', 'mkxp-z', 'Saves'];
+async function saveDirs(create) {
+  let dir = await root();
+  for (const p of SAVES) dir = await dir.getDirectoryHandle(p, { create });
+  const out = [];
+  for await (const [name, h] of dir.entries()) if (h.kind === 'directory') out.push([name, h]);
+  return out;
+}
+// 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
+async function installPreload() {
+  const res = await fetch('./ar_preload.rb?v=20261111132921');
+  if (!res.ok) return;
+  const script = await res.arrayBuffer();
+  const names = (await saveDirs(true)).map(([name]) => name);
+  if (!CUSTOM && !names.length) names.push('Pokmon; Another Red-sxa4980p'); // 처음 켤 때는 폴더가 아직 없다
+  for (const name of names) await opfs({ cmd: 'put', path: [...SAVES, name, 'ar_preload.rb'].join('/'), buf: script.slice(0) });
+}
+const asked = new Set();
+let asking = false;
+async function pollNameInput() {
+  if (!nost || asking || asleep) return;
+  asking = true;
+  try {
+    for (const [dirName, dir] of await saveDirs(false)) {
+      for await (const [name, h] of dir.entries()) {
+        if (!/^ar_in_\d+\.req$/.test(name) || asked.has(name)) continue;
+        asked.add(name);
+        const [max, help, initial = ''] = (await (await h.getFile()).text()).split('\n');
+        const path = [...SAVES, dirName, name.slice(0, -4)].join('/');
+        const put = (ext, text) => { const buf = new TextEncoder().encode(text).buffer; return opfs({ cmd: 'put', path: path + ext, buf }, [buf]); };
+        await put('.ack', '1');
+        releaseAll();
+        const answer = prompt(`${help} (최대 ${max}자)`, initial);
+        await put('.res', answer === null ? 'CANCEL' : 'OK\n' + answer);
+      }
+    }
+  } catch {} finally { asking = false; }
+}
+setInterval(pollNameInput, 400);
+
 function openMenu() {
   if (!nost) return;
-  try { nost.pause(); } catch {}
+  hold(true);
+  muteAudio(true);
   releaseAll();
   $('menu').hidden = false;
   refresh();
 }
 function closeMenu() {
   $('menu').hidden = true;
-  try { nost.resume(); } catch {}
+  hold(false);
+  if (!unseen && !asleep) muteAudio(false);
 }
 
 // ---------- 터치 패드 ----------
@@ -357,22 +463,33 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 // 홈으로 나가거나 화면이 꺼지면 게임과 소리를 멈추고, 돌아오면 다시 켠다
 // ('playback' 오디오 세션은 그냥 두면 백그라운드에서도 계속 소리를 낸다)
 let asleep = false;
+// 앱의 게임 목록 화면 뒤에 숨어 있는 동안 (app.js 가 알려준다)
+let frameHidden = false;
+const FRAMED = window.parent !== window;
+window.addEventListener('message', (e) => {
+  if (e.origin !== location.origin) return;
+  if (e.data?.ar === 'hide') { frameHidden = true; sleepGame(); }
+  if (e.data?.ar === 'show') { frameHidden = false; if (nost) $('menu').hidden = true; wakeGame(); } // 목록에서 다시 누르면 바로 게임으로
+});
 let unseen = false; // 화면이 안 그려지는 중 (아래 감시)
 function sleepGame() {
   if (asleep) return;
   asleep = true;
+  syncOut();
   addLog('[ar] sleep');
   releaseAll();
   muteAudio(true);
-  try { nost?.pause(); } catch {}
+  hold(true);
   for (const c of audioCtxs) if (c.state === 'running') c.suspend().catch(() => {});
 }
 function wakeGame() {
-  if (!asleep || document.hidden) return;
+  if (!asleep || document.hidden || frameHidden) return;
   asleep = false;
   addLog('[ar] wake');
-  if (!unseen) muteAudio(false);
-  if ($('menu').hidden) try { nost?.resume(); } catch {}
+  if ($('menu').hidden) {
+    hold(false);
+    if (!unseen) muteAudio(false);
+  }
   wakeAudio();
 }
 document.addEventListener('visibilitychange', () => (document.hidden ? sleepGame() : wakeGame()));
@@ -381,13 +498,12 @@ window.addEventListener('pageshow', wakeGame);
 // iOS 는 홈으로 나가도 visibilitychange 없이 화면 그리기만 멈추는 경우가 있다
 // → 화면 프레임이 1초 넘게 안 오면 소리만 끈다 (로딩 중에 잠깐 멈출 때도 있어서 게임은 그대로 둔다)
 let lastFrame = performance.now();
-const rafOrig = window.requestAnimationFrame.bind(window);
 rafOrig(function frame() {
   lastFrame = performance.now();
   if (unseen) {
     unseen = false;
     addLog('[ar] seen');
-    if (!asleep) muteAudio(false);
+    if (!asleep && !frozen) muteAudio(false);
   }
   rafOrig(frame);
 });
@@ -451,7 +567,7 @@ function readZip(buf) {
 async function collect(dir, prefix, out) {
   for await (const [name, h] of dir.entries()) {
     const path = prefix + name;
-    if (path === GAME_FILE || path.startsWith('.')) continue;
+    if ((!prefix && path.endsWith('.mkxpz')) || path.startsWith('.') || name.startsWith('ar_')) continue;
     if (h.kind === 'directory') await collect(h, path + '/', out);
     else out.push({ name: path, data: new Uint8Array(await (await h.getFile()).arrayBuffer()) });
   }
@@ -480,7 +596,7 @@ async function exportSaves() {
 
 async function importSaves(file) {
   try {
-    const files = readZip(await file.arrayBuffer()).filter((f) => f.name !== GAME_FILE);
+    const files = readZip(await file.arrayBuffer()).filter((f) => !f.name.endsWith('.mkxpz'));
     if (!files.length) throw new Error('백업 파일에 세이브가 없어요');
     if (!confirm(`세이브 파일 ${files.length}개로 덮어쓸까요? 지금 기기의 같은 이름 세이브는 바뀌어요.`)) return;
     for (const f of files) await opfs({ cmd: 'put', path: f.name, buf: f.data }, [f.data]);
@@ -493,6 +609,82 @@ async function importSaves(file) {
   } catch (err) {
     $('hint').textContent = '복원 실패: ' + err.message;
   }
+}
+
+// ---------- 앱 전용: 세이브를 파일 앱에서 보이는 폴더에 자동으로 복사 ----------
+// 앱을 지웠다 다시 깔아도 그 폴더를 고르면 세이브가 돌아온다.
+const APP = window.webkit?.messageHandlers?.ar ?? (FRAMED ? window.parent.webkit?.messageHandlers?.ar : undefined);
+const synced = new Map(); // 경로 -> 크기:수정시각
+const saveUrl = (name) => '/saves/' + name.split('/').map(encodeURIComponent).join('/');
+async function listSaves(dir, prefix, out) {
+  for await (const [name, h] of dir.entries()) {
+    const path = prefix + name;
+    if ((!prefix && path.endsWith('.mkxpz')) || path.startsWith('.') || name.startsWith('ar_')) continue;
+    if (h.kind === 'directory') await listSaves(h, path + '/', out);
+    else try { out.push({ name: path, file: await h.getFile() }); } catch {}
+  }
+  return out;
+}
+let syncing = false;
+async function syncOut() {
+  if (!APP || syncing) return;
+  syncing = true;
+  try {
+    for (const { name, file } of await listSaves(await root(), '', [])) {
+      const sig = file.size + ':' + file.lastModified;
+      if (synced.get(name) === sig) continue;
+      const r = await fetch(saveUrl(name), { method: 'PUT', body: await file.arrayBuffer() });
+      if (r.ok) synced.set(name, sig);
+    }
+  } catch {} finally { syncing = false; }
+}
+async function folderSaves() { return (await fetch('/saves/', { cache: 'no-store' })).json(); }
+async function syncIn(names) {
+  for (const name of names) {
+    const buf = await (await fetch(saveUrl(name), { cache: 'no-store' })).arrayBuffer();
+    await opfs({ cmd: 'put', path: name, buf }, [buf]);
+  }
+}
+function showFolder(info) {
+  $('folder').hidden = $('folder-hint').hidden = false;
+  $('folder-hint').textContent = `세이브 자동 저장 위치: ${info.label}` + (info.outside ? '' : ' (앱을 지우면 같이 지워져요. 폴더를 고르면 남아요.)');
+}
+let appReady = false;
+async function appSaves() {
+  if (!APP || appReady) return;
+  appReady = true;
+  try {
+    showFolder(await APP.postMessage('folder'));
+    // 새로 깐 앱이면 폴더에 남아 있던 세이브를 가져온다
+    const names = await folderSaves();
+    if (names.length && !(await listSaves(await root(), '', [])).length) {
+      await syncIn(names);
+      $('hint').textContent = `폴더에서 세이브 파일 ${names.length}개를 불러왔어요.`;
+    }
+    await syncOut();
+    setInterval(syncOut, 5000);
+  } catch (err) { addLog('[ar] 세이브 폴더 오류: ' + err.message); }
+}
+async function pickFolder() {
+  try {
+    const info = await APP.postMessage('pick');
+    if (!info) return;
+    showFolder(info);
+    synced.clear();
+    const names = await folderSaves();
+    const mine = (await listSaves(await root(), '', [])).length;
+    if (names.length && (!mine || confirm(`이 폴더에 세이브 파일 ${names.length}개가 있어요. 불러올까요?\n\n확인: 폴더의 세이브를 불러와요 (지금 세이브는 바뀌어요).\n취소: 지금 세이브를 이 폴더에 덮어 저장해요.`))) {
+      await syncIn(names);
+      if (nost) { alert('불러왔어요. 적용하려면 다시 엽니다.'); return location.reload(); }
+      $('hint').textContent = `폴더에서 세이브 파일 ${names.length}개를 불러왔어요.`;
+    }
+    await syncOut();
+  } catch (err) { $('hint').textContent = '폴더 설정 실패: ' + err.message; }
+}
+$('folder').addEventListener('click', pickFolder);
+if (APP) {
+  $('library').hidden = false;
+  $('library').addEventListener('click', async () => { await syncOut(); FRAMED ? window.parent.postMessage({ ar: 'library' }, location.origin) : (location.href = 'app.html'); });
 }
 
 $('download').addEventListener('click', download);

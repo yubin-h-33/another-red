@@ -13,7 +13,7 @@
 <link rel="icon" href="./icon.png" />
 <title>어나더레드</title>
 <link rel="stylesheet" href="./assets/player.css" />
-<link rel="stylesheet" href="./ar.css?v=20261110205842" />
+<link rel="stylesheet" href="./ar.css?v=20261111132921" />
 <script>
   // 사파리는 COEP credentialless 를 지원하지 않아서 항상 require-corp 를 쓰게 한다
   window.coi = { coepCredentialless: () => false };
@@ -64,6 +64,9 @@
         <button id="import">세이브 복원</button>
       </div>
       <input type="file" id="import-file" accept=".zip,application/zip" hidden />
+      <button id="folder" hidden>세이브 폴더 고르기</button>
+      <button id="library" hidden>‹ 게임 목록</button>
+      <p id="folder-hint" hidden></p>
       <p id="hint"></p>
       <details>
         <summary>도움말</summary>
@@ -77,6 +80,6 @@
     </div>
   </div>
 
-  <script type="module" src="./ar.js?v=20261110205842"></script>
+  <script type="module" src="./ar.js?v=20261111132921"></script>
 </body>
 </html>
