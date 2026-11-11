@@ -221,12 +221,27 @@ function audioStalled() {
   stallTimer = setTimeout(() => { stallTimer = 0; if (!frozen && !asleep && audioDown()) { $('tap').hidden = false; wakeAudio(); } }, 700);
 }
 
+let errLines = [];
+let errTimer = 0;
+function noteError(line) {
+  if (/^(Exception|Message):/.test(line)) errLines.push(line.replace(/^Message: /, ''));
+  clearTimeout(errTimer);
+  errTimer = setTimeout(() => {
+    $('err').textContent = '게임 안에서 오류가 났어요. 계속 진행해 볼게요.\n' + errLines.join(' · ').slice(0, 160);
+    $('err').hidden = false;
+    errLines = [];
+    setTimeout(() => { $('err').hidden = true; }, 7000);
+  }, 400);
+}
+
 // ---------- 로딩 로그: 검은 화면일 때 무슨 일이 일어나는지 보이게 ----------
 const logLines = [];
 let logOn = false;
 const DEBUG = new URLSearchParams(location.search).has('debug') || !!sessionStorage.getItem('ar-debug');
 function addLog(text) {
   if (DEBUG) try { navigator.sendBeacon('/log', (performance.now() / 1000).toFixed(1) + 's ' + String(text).slice(0, 300)); } catch {}
+  // 게임 스크립트 오류 (엔진이 오류 창 대신 로그로 내보낸다) → 잠깐 알려 준다. 자세한 내용은 세이브 폴더의 errorlog.txt
+  if (String(text).includes('[mkxp-z msgbox]')) noteError(String(text).split('[mkxp-z msgbox]')[1].trim());
   // 게임이 화면 크기를 정하면 첫 화면이 나온 것
   if (String(text).includes('SET_GEOMETRY')) onGameShown();
   if (!logOn || !DEBUG) return;
@@ -332,6 +347,7 @@ window.__arGame = async () => (await (await root()).getFileHandle(GAME_FILE)).ge
 window.__arStarted = (z) => {
   nost = z;
   $('pad').hidden = false;
+  if (TEST && !ff) setTimeout(() => { if (!ff) $('ff').click(); }, 4000);
 };
 
 async function start() {
@@ -348,7 +364,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261111152856');
+    await import('./assets/player.js?v=20261111174151');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -368,14 +384,18 @@ async function saveDirs(create) {
 }
 // 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
 async function installPreload() {
-  const res = await fetch('./ar_preload.rb?v=20261111152856');
+  const res = await fetch('./ar_preload.rb?v=20261111174151');
   if (!res.ok) return;
-  const script = await res.arrayBuffer();
+  let script = await res.arrayBuffer();
+  if (DEBUG) { // 개발용 자동 테스트: Documents/Games/ar_test.rb 가 있으면 뒤에 붙인다
+    const t = await fetch('/games/ar_test.rb').catch(() => null);
+    if (t?.ok) { TEST = true; script = await new Blob([script, '\n', await t.arrayBuffer()]).arrayBuffer(); addLog('[ar] TEST mode'); }
+  }
   const dirs = await saveDirs(true);
   // 지난번에 입력 도중 앱이 꺼졌으면 요청 파일이 남아 있다 → 지우지 않으면 켜자마자 입력창이 뜬다
   for (const [, dir] of dirs) {
     const stale = [];
-    for await (const name of dir.keys()) if (name.startsWith('ar_in_')) stale.push(name);
+    for await (const name of dir.keys()) if (name.startsWith('ar_in_') || name === 'ar_test.log') stale.push(name);
     for (const name of stale) await dir.removeEntry(name).catch(() => {});
   }
   const names = dirs.map(([name]) => name);
@@ -403,6 +423,7 @@ function askText(help, max, initial) {
     };
     $('ask').querySelector('form').onsubmit = (e) => { e.preventDefault(); done(input.value); };
     $('ask-cancel').onclick = () => done(null);
+    if (TEST) setTimeout(() => { input.value = '테스트'; done(input.value); }, 1200);
   });
 }
 function endAsk() {
@@ -410,6 +431,20 @@ function endAsk() {
   hold(false);
   if (!unseen) muteAudio(false);
 }
+let TEST = false;
+const testSeen = new Map();
+setInterval(async () => { // 테스트 스크립트가 남긴 기록을 로그로 옮긴다
+  if (!TEST || !nost) return;
+  try {
+    for (const [dirName, dir] of await saveDirs(false)) {
+      const h = await dir.getFileHandle('ar_test.log').catch(() => null);
+      if (!h) continue;
+      const lines = (await (await h.getFile()).text()).split('\n');
+      for (let i = testSeen.get(dirName) ?? 0; i < lines.length - 1; i++) addLog('[T] ' + lines[i]);
+      testSeen.set(dirName, lines.length - 1);
+    }
+  } catch {}
+}, 1000);
 const asked = new Set();
 let asking = false;
 async function pollNameInput() {
