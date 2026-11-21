@@ -364,7 +364,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261121150941');
+    await import('./assets/player.js?v=20261121152214');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -384,7 +384,7 @@ async function saveDirs(create) {
 }
 // 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
 async function installPreload() {
-  const res = await fetch('./ar_preload.rb?v=20261121150941');
+  const res = await fetch('./ar_preload.rb?v=20261121152214');
   if (!res.ok) return;
   let script = await res.arrayBuffer();
   if (DEBUG) { // 개발용 자동 테스트: Documents/Games/ar_test.rb 가 있으면 뒤에 붙인다
@@ -566,6 +566,13 @@ $('ff').addEventListener('click', () => {
 });
 $('open-menu').addEventListener('click', openMenu);
 document.addEventListener('gesturestart', (e) => e.preventDefault());
+// 버튼을 꾹 누르면 iOS 가 돋보기(확대 렌즈)나 글자 선택을 띄운다 → 패드에서는 터치 기본 동작을 막는다.
+// (포인터 이벤트는 그대로 온다. click 을 쓰는 아래쪽 ⏩/⚙ 버튼만 예외)
+for (const el of [$('pad')]) {
+  for (const ev of ['touchstart', 'touchmove']) {
+    el.addEventListener(ev, (e) => { if (!e.target.closest('#sys')) e.preventDefault(); }, { passive: false });
+  }
+}
 // 홈으로 나가거나 화면이 꺼지면 게임과 소리를 멈추고, 돌아오면 다시 켠다
 // ('playback' 오디오 세션은 그냥 두면 백그라운드에서도 계속 소리를 낸다)
 let asleep = false;

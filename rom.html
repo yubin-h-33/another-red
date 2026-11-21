@@ -143,6 +143,8 @@
     const touch = (e) => { if (e.target.id === 'back') return; e.preventDefault(); touches.set(e.pointerId, keysAt(e.clientX, e.clientY)); apply(); };
     pad.addEventListener('pointerdown', (e) => { if (e.target.id !== 'back') pad.setPointerCapture(e.pointerId); touch(e); });
     pad.addEventListener('pointermove', (e) => { if (touches.has(e.pointerId)) touch(e); });
+    // 꾹 누를 때 iOS 돋보기(확대 렌즈)가 뜨지 않게 ('‹ 목록' 버튼은 click 을 써서 예외)
+    for (const ev of ['touchstart', 'touchmove']) pad.addEventListener(ev, (e) => { if (e.target.id !== 'back') e.preventDefault(); }, { passive: false });
     for (const ev of ['pointerup', 'pointercancel']) pad.addEventListener(ev, (e) => { touches.delete(e.pointerId); apply(); });
 
     const gm = () => window.EJS_emulator.gameManager;
