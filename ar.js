@@ -364,7 +364,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261121150410');
+    await import('./assets/player.js?v=20261121150941');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -384,7 +384,7 @@ async function saveDirs(create) {
 }
 // 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
 async function installPreload() {
-  const res = await fetch('./ar_preload.rb?v=20261121150410');
+  const res = await fetch('./ar_preload.rb?v=20261121150941');
   if (!res.ok) return;
   let script = await res.arrayBuffer();
   if (DEBUG) { // 개발용 자동 테스트: Documents/Games/ar_test.rb 가 있으면 뒤에 붙인다
