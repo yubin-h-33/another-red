@@ -364,7 +364,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261111174151');
+    await import('./assets/player.js?v=20261121150410');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -384,7 +384,7 @@ async function saveDirs(create) {
 }
 // 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
 async function installPreload() {
-  const res = await fetch('./ar_preload.rb?v=20261111174151');
+  const res = await fetch('./ar_preload.rb?v=20261121150410');
   if (!res.ok) return;
   let script = await res.arrayBuffer();
   if (DEBUG) { // 개발용 자동 테스트: Documents/Games/ar_test.rb 가 있으면 뒤에 붙인다
@@ -492,8 +492,10 @@ function press(btn, down) {
   if (down) {
     downAt.set(btn, performance.now());
   } else {
-    const wait = 150 - (performance.now() - (downAt.get(btn) ?? 0));
-    if (wait > 0) return setTimeout(() => press(btn, false), wait);
+    const at = downAt.get(btn) ?? 0;
+    const wait = 150 - (performance.now() - at);
+    // 기다리는 사이 같은 버튼이 다시 눌렸으면 (십자키를 빠르게 왔다 갔다) 새로 누른 걸 떼지 않는다
+    if (wait > 0) return setTimeout(() => { if (downAt.get(btn) === at) press(btn, false); }, wait);
   }
   try { (down ? nost.pressDown : nost.pressUp).call(nost, { button: btn }); } catch {}
 }
@@ -522,20 +524,27 @@ for (const el of document.querySelectorAll('#pad [data-btn]')) {
   el.addEventListener('pointercancel', up);
 }
 
-// 십자키: 손가락을 떼지 않고 미끄러지면 방향이 바뀐다
+// 십자키: 손가락을 떼지 않고 미끄러지면 방향이 바뀐다.
+// 누르는 영역은 왼쪽 칸 전체(#dpad), 방향은 보이는 십자(.cross) 가운데 기준 각도로 정한다.
 const dpad = $('dpad');
+const cross = dpad.querySelector('.cross');
 let dpadPointer = null, dpadDir = null;
 function setDir(dir) {
   if (dir === dpadDir) return;
-  if (dpadDir) { press(dpadDir, false); dpad.querySelector('.' + dpadDir).classList.remove('on'); }
+  if (dpadDir) { press(dpadDir, false); cross.querySelector('.' + dpadDir).classList.remove('on'); }
   dpadDir = dir;
-  if (dir) { press(dir, true); dpad.querySelector('.' + dir).classList.add('on'); }
+  if (dir) { press(dir, true); cross.querySelector('.' + dir).classList.add('on'); }
+  dpad.classList.toggle('on', !!dir);
 }
 function dirFrom(e) {
-  const r = dpad.getBoundingClientRect();
+  const r = cross.getBoundingClientRect();
   const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
-  if (Math.hypot(dx, dy) < r.width * 0.12) return dpadDir; // 가운데 데드존
-  return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  if (Math.hypot(dx, dy) < r.width * 0.1) return dpadDir; // 가운데 데드존: 방향 유지
+  const ax = Math.abs(dx), ay = Math.abs(dy);
+  // 대각선 근처에서 방향이 왔다 갔다 하지 않게, 지금 방향의 축을 조금 더 넓게 봐준다
+  const horiz = dpadDir === 'left' || dpadDir === 'right' ? ax * 1.3 > ay
+    : dpadDir === 'up' || dpadDir === 'down' ? ax > ay * 1.3 : ax > ay;
+  return horiz ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
 }
 dpad.addEventListener('pointerdown', (e) => {
   e.preventDefault();

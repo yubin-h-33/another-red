@@ -36,7 +36,7 @@ button { font: inherit; color: inherit; }
   pointer-events: none; z-index: 1;
 }
 
-/* 패드: 일반 게임기 배치 — 위 모서리에 L/R, 왼쪽 십자키, 오른쪽 A/B/가방, 가운데 작은 기능 버튼 */
+/* 패드: 일반 게임기 배치 — 위 모서리에 L/R, 왼쪽 십자키, 오른쪽 A/B/메뉴, 가운데 작은 기능 버튼 */
 #pad {
   position: fixed; left: 0; right: 0;
   top: calc(var(--sat, env(safe-area-inset-top)) + 75vw);
@@ -71,10 +71,14 @@ button { font: inherit; color: inherit; }
 #sys { grid-area: sys; display: flex; justify-content: center; gap: 14px; }
 #sys .sm { width: 92px; }
 
+/* 십자키: 보이는 십자는 그대로 두고, 누르는 영역은 왼쪽 칸 전체로 넓힌다.
+   방향은 십자 가운데 기준 각도로 정하므로 엄지가 십자 밖으로 조금 벗어나도 계속 눌린다. */
 #dpad {
-  grid-area: dpad; position: relative; align-self: center; justify-self: start;
-  width: min(calc((100vw - 120px) / 2), 165px); aspect-ratio: 1;
+  grid-area: dpad; position: relative; align-self: stretch; justify-self: stretch;
+  display: flex; align-items: center; justify-content: flex-start;
+  margin: -10px 0 -6px -14px; padding-left: 14px; /* 화면 왼쪽 끝과 위아래 여백까지 */
 }
+#dpad .cross { position: relative; width: min(calc((100vw - 120px) / 2), 165px); aspect-ratio: 1; flex: none; }
 #dpad span, #dpad i {
   position: absolute; background: var(--btn); border: 1px solid var(--line);
 }
@@ -84,9 +88,10 @@ button { font: inherit; color: inherit; }
 #dpad .left { left: 0; top: 33%; border-radius: 10px 0 0 10px; border-right: none; }
 #dpad .right { right: 0; top: 33%; border-radius: 0 10px 10px 0; border-left: none; }
 #dpad i { left: 33%; top: 33%; width: 34%; height: 34%; border: none; }
-#dpad span.on { background: var(--btn-active); }
+#dpad span.on { background: var(--red-dark); border-color: var(--red); }
+#dpad.on i { background: var(--btn-active); }
 
-/* A 는 오른쪽 위, B 는 왼쪽 아래(게임보이 배치), 가방은 A 아래 */
+/* A 는 오른쪽 위, B 는 왼쪽 아래(게임보이 배치), 메뉴(Z키)는 A 아래 */
 #face { grid-area: face; position: relative; align-self: center; justify-self: end; width: min(calc((100vw - 120px) / 2), 165px); aspect-ratio: 1; }
 .face {
   position: absolute; border-radius: 50%; border: 1px solid var(--line);
@@ -96,7 +101,12 @@ button { font: inherit; color: inherit; }
 #btn-a { width: 42%; height: 42%; right: 0; top: 10%; background: var(--red-dark); border-color: var(--red); font-size: 22px; }
 #btn-a.on { background: var(--red); }
 #btn-b { width: 42%; height: 42%; left: 2%; top: 34%; font-size: 22px; }
-#btn-bag { width: 30%; height: 30%; right: 8%; bottom: 0; font-size: 13px; }
+#btn-menu { width: 30%; height: 30%; right: 8%; bottom: 0; font-size: 12px; }
+/* 게임 대사가 말하는 키보드 키를 작게 같이 적는다 */
+#pad small { display: block; font-size: 9px; font-weight: 500; color: var(--muted); line-height: 1; margin-top: 2px; letter-spacing: 0; }
+#btn-a small { color: #ffd0d0; }
+.shoulder small, #pad .sm small { display: inline; margin: 0 0 0 5px; }
+.shoulder small { font-size: 11px; }
 
 /* 가로모드: 화면을 가운데 크게, 패드는 양옆에 반투명으로 */
 @media (orientation: landscape) {
@@ -111,7 +121,8 @@ button { font: inherit; color: inherit; }
   #btn-r { right: calc(var(--sar, env(safe-area-inset-right)) + 10px); top: 10px; width: 120px; }
   #mid { left: calc(var(--sal, env(safe-area-inset-left)) + 10px); top: 64px; }
   #sys { right: calc(var(--sar, env(safe-area-inset-right)) + 10px); top: 64px; flex-direction: column; gap: 10px; }
-  #dpad { left: calc(var(--sal, env(safe-area-inset-left)) + 10px); bottom: 14px; width: 150px; }
+  #dpad { left: 0; bottom: 0; width: calc(var(--sal, env(safe-area-inset-left)) + 200px); height: 230px; margin: 0; padding: 0 0 14px calc(var(--sal, env(safe-area-inset-left)) + 10px); align-items: flex-end; opacity: 1; }
+  #dpad .cross { width: 150px; opacity: .8; }
   #face { right: calc(var(--sar, env(safe-area-inset-right)) + 10px); bottom: 14px; width: 150px; }
 }
 
