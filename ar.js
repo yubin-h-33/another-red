@@ -303,7 +303,13 @@ function guardAudio(ctx) {
   // 다시 켜는 건 wakeAudio 에서만, 한 번에 하나씩 한다.
   const resume = ctx.resume.bind(ctx);
   let waking = null;
-  ctx.arResume = () => (waking ??= resume().catch(() => {}).finally(() => { waking = null; }));
+  // 터치 없이 부른 resume 은 iOS 가 거절하지도 않고 끝없이 대기시킬 때가 있다 (앱을 나갔다 왔을 때).
+  // 그래서 터치 안에서 부를 때(gesture)는 앞의 대기와 상관없이 새로 부른다.
+  ctx.arResume = (gesture) => {
+    if (waking && !gesture) return waking;
+    const p = resume().catch(() => {}).finally(() => { if (waking === p) waking = null; });
+    return (waking = p);
+  };
   ctx.resume = () => Promise.resolve();
   const out = ctx.createGain();
   out.connect(ctx.destination);
@@ -336,11 +342,36 @@ function primeAudio() {
     primedAudio.arResume();
   } catch {}
 }
-function wakeAudio() {
-  if (document.hidden || asleep) return;
-  for (const c of audioCtxs) if (c.state !== 'running' && c.state !== 'closed') c.arResume();
+// iOS 가 다른 앱·전화 등으로 소리 장치를 끊었을 때는 AudioContext.resume 만으로는 안 돌아올 때가 있다.
+// 터치 안에서 무음 <audio> 를 한 번 재생하면 앱의 소리 장치가 다시 켜진다.
+let silentEl = null;
+function kickAudioSession() {
+  try {
+    if (!silentEl) {
+      // 0.1초짜리 무음 wav
+      const n = 4410, b = new DataView(new ArrayBuffer(44 + n * 2));
+      const w = (o, t) => [...t].forEach((ch, i) => b.setUint8(o + i, ch.charCodeAt(0)));
+      w(0, 'RIFF'); b.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); b.setUint32(16, 16, true);
+      b.setUint16(20, 1, true); b.setUint16(22, 1, true); b.setUint32(24, 44100, true); b.setUint32(28, 88200, true);
+      b.setUint16(32, 2, true); b.setUint16(34, 16, true); w(36, 'data'); b.setUint32(40, n * 2, true);
+      silentEl = new Audio(URL.createObjectURL(new Blob([b], { type: 'audio/wav' })));
+      silentEl.setAttribute('playsinline', '');
+    }
+    silentEl.currentTime = 0;
+    silentEl.play().catch(() => {});
+  } catch {}
 }
-for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, wakeAudio, true);
+function wakeAudio(e) {
+  const gesture = !!e?.isTrusted;
+  // 돌아왔는데 visibilitychange 를 못 받아 잠든 상태로 남아 있으면 터치로 깨운다
+  if (gesture && asleep && !document.hidden && !frameHidden) wakeGame();
+  if (document.hidden || asleep) return;
+  const down = audioCtxs.filter((c) => c.state !== 'running' && c.state !== 'closed');
+  if (!down.length) return;
+  if (gesture) kickAudioSession();
+  for (const c of down) c.arResume(gesture);
+}
+for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) document.addEventListener(ev, wakeAudio, true);
 
 // ---------- 게임 시작 ----------
 window.__arGame = async () => (await (await root()).getFileHandle(GAME_FILE)).getFile();
@@ -364,7 +395,7 @@ async function start() {
   $('pad').hidden = false;
   showLoading();
   try {
-    await import('./assets/player.js?v=20261121152214');
+    await import('./assets/player.js?v=20261121170309');
     addLog('[ar] 엔진 시작 완료');
   } catch (err) {
     addLog('[ar] 엔진 시작 실패: ' + (err?.message ?? err));
@@ -384,7 +415,7 @@ async function saveDirs(create) {
 }
 // 게임 파일 안의 예전 스크립트보다 세이브 폴더의 것이 먼저 읽힌다 → 게임 데이터를 다시 받지 않고 바꿀 수 있다
 async function installPreload() {
-  const res = await fetch('./ar_preload.rb?v=20261121152214');
+  const res = await fetch('./ar_preload.rb?v=20261121170309');
   if (!res.ok) return;
   let script = await res.arrayBuffer();
   if (DEBUG) { // 개발용 자동 테스트: Documents/Games/ar_test.rb 가 있으면 뒤에 붙인다
